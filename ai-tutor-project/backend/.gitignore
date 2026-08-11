@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.env
+.venv/
+venv/
+storage/uploads/*
+storage/vector_db/*
+!storage/uploads/.gitkeep
+!storage/vector_db/.gitkeep
+.DS_Store
