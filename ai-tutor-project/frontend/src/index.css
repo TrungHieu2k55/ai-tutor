@@ -1,12 +1,11 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 body {
-  @apply bg-bg text-ink font-sans antialiased;
+  margin: 0;
+  font-family: "Inter", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: #F3F6FB;
+  color: #1A2233;
 }
 
-.input {
-  @apply border border-border rounded-lg px-3 py-2.5 text-[13px] outline-none bg-white
-    placeholder:text-muted/60 focus:border-accent transition-colors;
+* {
+  box-sizing: border-box;
 }

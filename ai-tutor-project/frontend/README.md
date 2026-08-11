@@ -1,44 +1,59 @@
-# AI Tutor — Frontend (React + Vite + Tailwind)
+# AI Tutor — Frontend (React + Ant Design)
 
-Giao diện người dùng cho nền tảng AI Tutor, kết nối trực tiếp tới `backend/` (FastAPI)
-qua đường dẫn `/api` (được Vite proxy sang `http://localhost:8000`).
+Giao diện người dùng nền tảng AI Tutor được xây dựng bằng **React + Vite + Ant Design**
 
-## Cấu trúc
+---
 
+## 📁 Cấu trúc thư mục
+
+```text
+frontend/
+├── jsconfig.json             # Cấu hình Path Alias (~/* -> ./src/*)
+├── vite.config.js            # Cấu hình Vite bundler & Alias resolution
+└── src/
+    ├── main.jsx                  # Entry point, wrap ToastProvider & BrowserRouter
+    ├── App.jsx                   # Định nghĩa tuyến đường (Student, Admin & 404 routes)
+    ├── index.css                 # CSS Reset & Ant Design global overrides
+    ├── api/
+    │   └── client.js             # Axios client kết nối backend API
+    ├── assets/
+    │   └── ai_tutor.svg          # Logo ứng dụng (Trắng / Chuẩn SVG)
+    ├── lib/
+    │   └── AuthContext.jsx       # Quản lý trạng thái xác thực & JWT Token
+    ├── components/
+    │   ├── Sidebar.jsx           # Sidebar Học viên (+ Cuộc trò chuyện mới, Lịch sử, ProfileModal, Logout)
+    │   ├── AdminSidebar.jsx      # Sidebar Quản trị viên
+    │   ├── Toast.jsx             # Hệ thống thông báo (antd message & notification)
+    │   ├── LoadingSkeleton.jsx   # Hiệu ứng nạp dữ liệu cho Card/List/Chat
+    │   ├── ProfileModal.jsx      # Popup Hồ sơ cá nhân & Đổi mật khẩu
+    │   └── ProtectedRoute.jsx    # Bảo vệ tuyến đường đăng nhập
+    └── pages/
+        ├── LoginPage.jsx         # Trang Đăng nhập / Đăng ký / Bypass Test Mode
+        ├── LibraryPage.jsx       # Thư viện tài liệu (Drag & Drop upload)
+        ├── ChatPage.jsx          # Khung chat hỏi-đáp AI (kèm Panel Nguồn trích dẫn & Tiến độ ôn tập)
+        ├── ProgressPage.jsx      # Tiến độ học tập & thống kê
+        ├── NotFoundPage.jsx      # Trang lỗi 404 giao diện hiện đại & nút điều hướng
+        └── admin/
+            ├── AdminDashboard.jsx # Tổng quan hệ thống & Người dùng gần đây
+            ├── AdminDocuments.jsx # Tài liệu toàn hệ thống & Nhật ký câu hỏi AI
+            ├── AdminUsers.jsx     # Quản lý danh sách người dùng & phân quyền
+            ├── AdminAIMonitor.jsx # Giám sát pipeline AI (Model, VectorDB, LLM)
+            └── AdminSettings.jsx  # Cài đặt hệ thống
 ```
-src/
-  main.jsx              # Entry point
-  App.jsx                # Định nghĩa routes
-  pages/
-    LoginPage.jsx          # Đăng nhập / Đăng ký
-    LibraryPage.jsx         # Thư viện tài liệu (upload + danh sách)
-    ChatPage.jsx              # Trò chuyện hỏi-đáp với AI (có trích dẫn nguồn)
-    ProgressPage.jsx           # Tiến độ học tập
-  components/
-    Sidebar.jsx              # Sidebar dùng chung
-    ProtectedRoute.jsx         # Chặn truy cập khi chưa đăng nhập
-  api/client.js             # Axios client + các hàm gọi API backend
-  lib/AuthContext.jsx        # Quản lý trạng thái đăng nhập (JWT lưu localStorage)
-```
 
-## Cài đặt & chạy
+---
+
+## 🛠️ Cài đặt & Chạy ứng dụng
 
 ```bash
+# 1. Cài đặt dependencies
 npm install
+
+# 2. Khởi chạy dev server
 npm run dev
 ```
 
-Mặc định chạy tại `http://localhost:5173`. Cần chạy `backend/` song song ở
-`http://localhost:8000` để các API hoạt động (xem `backend/README.md`).
+Ứng dụng mặc định chạy tại: `http://localhost:5173`.
 
-## Đồng bộ thiết kế
+---
 
-Bảng màu trong `tailwind.config.js` (navy `#0E1B2E`, accent `#2F6FED`, nền `#F3F6FB`)
-lấy đúng theo bản thiết kế Figma "tech blue, trustworthy" đã chốt.
-
-## Việc cần làm tiếp
-
-- [ ] Trang Admin (Tổng quan, Người dùng, Tài liệu, Giám sát AI) — đã có thiết kế Figma, backend cần bổ sung route trước
-- [ ] Backend cần thêm endpoint `GET /progress` để trang Tiến độ học tập hiển thị dữ liệu thật (hiện đang tính tạm từ danh sách tài liệu)
-- [ ] Toast/thông báo lỗi rõ ràng hơn thay vì chỉ hiển thị text đỏ
-- [ ] Loading skeleton khi tải danh sách tài liệu

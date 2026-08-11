@@ -1,26 +1,27 @@
+import { LockOutlined, MailOutlined, ThunderboltOutlined, UserOutlined } from "@ant-design/icons";
+import { Alert, Button, Flex, Form, Input, Typography } from "antd";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../lib/AuthContext";
+import aiTutorLogo from "~/assets/ai_tutor.svg";
+import { useAuth } from "~/lib/AuthContext";
+
+const { Title, Text } = Typography;
 
 export default function LoginPage() {
-  const [mode, setMode] = useState("login"); // login | register
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [mode, setMode] = useState("login");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { login, register } = useAuth();
   const navigate = useNavigate();
 
-  async function handleSubmit(e) {
-    e.preventDefault();
+  async function handleSubmit(values) {
     setError("");
     setLoading(true);
     try {
       if (mode === "login") {
-        await login(email, password);
+        await login(values.email, values.password);
       } else {
-        await register(fullName, email, password);
+        await register(values.fullName, values.email, values.password);
       }
       navigate("/library");
     } catch (err) {
@@ -31,89 +32,131 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex">
-      <div className="hidden md:flex w-[420px] shrink-0 bg-navy flex-col justify-center px-14 gap-4 relative overflow-hidden">
-        <div className="absolute w-64 h-64 rounded-full bg-accent/20 blur-3xl -bottom-16 -right-10" />
-        <div className="w-11 h-11 rounded-xl bg-accent relative z-10" />
-        <h1 className="text-[26px] font-semibold text-white relative z-10">AI Tutor</h1>
-        <p className="text-sm text-white/60 max-w-[300px] relative z-10">
+    <Flex style={{ minHeight: "100vh" }}>
+      {/* Panel bên trái */}
+      <Flex
+        vertical
+        justify="center"
+        gap={16}
+        style={{
+          width: 420,
+          flexShrink: 0,
+          background: "#0E1B2E",
+          padding: "0 56px",
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            width: 256,
+            height: 256,
+            borderRadius: "50%",
+            background: "rgba(47,111,237,0.2)",
+            filter: "blur(48px)",
+            bottom: -64,
+            right: -40,
+          }}
+        />
+        <Flex
+          align="center"
+          justify="center"
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: 14,
+            background: "#2F6FED",
+            flexShrink: 0,
+            padding: 3,
+            position: "relative",
+            zIndex: 10,
+          }}
+        >
+          <img
+            src={aiTutorLogo}
+            alt="AI Tutor Logo"
+            style={{ width: "100%", height: "100%", objectFit: "contain", filter: "brightness(0) invert(1)" }}
+          />
+        </Flex>
+        <Title level={2} style={{ color: "#fff", margin: 0, position: "relative", zIndex: 10 }}>AI Tutor</Title>
+        <Text style={{ color: "rgba(255,255,255,0.6)", maxWidth: 300, fontSize: 14, position: "relative", zIndex: 10 }}>
           Học cùng tài liệu của bạn — hỏi gì AI cũng tra cứu và trả lời kèm trích dẫn nguồn rõ ràng.
-        </p>
-      </div>
+        </Text>
+      </Flex>
 
-      <div className="flex-1 flex items-center justify-center px-10">
-        <form onSubmit={handleSubmit} className="w-full max-w-[340px] flex flex-col gap-4">
-          <div>
-            <h2 className="text-[22px] font-semibold">{mode === "login" ? "Đăng nhập" : "Tạo tài khoản"}</h2>
-            <p className="text-[13px] text-muted mt-1">
-              {mode === "login" ? "Tiếp tục vào không gian học tập của bạn" : "Bắt đầu học cùng AI Tutor"}
-            </p>
-          </div>
+      {/* Form đăng nhập / đăng ký */}
+      <Flex flex={1} align="center" justify="center" style={{ padding: "0 40px" }}>
+        <div style={{ width: "100%", maxWidth: 340 }}>
+          <Title level={3} style={{ marginBottom: 4 }}>
+            {mode === "login" ? "Đăng nhập" : "Tạo tài khoản"}
+          </Title>
+          <Text type="secondary" style={{ fontSize: 13 }}>
+            {mode === "login" ? "Tiếp tục vào không gian học tập của bạn" : "Bắt đầu học cùng AI Tutor"}
+          </Text>
 
           {error && (
-            <p className="text-[13px] text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
+            <Alert message={error} type="error" showIcon style={{ marginTop: 16, marginBottom: 8 }} />
           )}
 
-          {mode === "register" && (
-            <Field label="Họ và tên">
-              <input
-                required
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="Nguyễn An"
-                className="input"
-              />
-            </Field>
-          )}
-
-          <Field label="Email">
-            <input
-              required
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="ban@truong.edu.vn"
-              className="input"
-            />
-          </Field>
-
-          <Field label="Mật khẩu">
-            <input
-              required
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="input"
-            />
-          </Field>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="bg-accent text-white text-[13.5px] font-semibold py-2.5 rounded-lg hover:opacity-90 disabled:opacity-60 transition"
+          <Form
+            layout="vertical"
+            onFinish={handleSubmit}
+            autoComplete="off"
+            requiredMark={false}
+            style={{ marginTop: 20 }}
           >
-            {loading ? "Đang xử lý..." : mode === "login" ? "Đăng nhập" : "Đăng ký"}
-          </button>
+            {mode === "register" && (
+              <Form.Item label="Họ và tên" name="fullName" rules={[{ required: true, message: "Vui lòng nhập họ tên" }]}>
+                <Input prefix={<UserOutlined />} placeholder="Nguyễn An" size="large" />
+              </Form.Item>
+            )}
 
-          <button
-            type="button"
+            <Form.Item
+              label="Email"
+              name="email"
+              rules={[
+                { required: true, message: "Vui lòng nhập email" },
+                { type: "email", message: "Email không hợp lệ" },
+              ]}
+            >
+              <Input prefix={<MailOutlined />} placeholder="ban@truong.edu.vn" size="large" />
+            </Form.Item>
+
+            <Form.Item label="Mật khẩu" name="password" rules={[{ required: true, message: "Vui lòng nhập mật khẩu" }]}>
+              <Input.Password prefix={<LockOutlined />} placeholder="••••••••" size="large" />
+            </Form.Item>
+
+            <Form.Item>
+              <Button type="primary" htmlType="submit" loading={loading} block size="large">
+                {mode === "login" ? "Đăng nhập" : "Đăng ký"}
+              </Button>
+            </Form.Item>
+
+            <Form.Item>
+              <Button
+                type="default"
+                block
+                icon={<ThunderboltOutlined />}
+                onClick={() => {
+                  localStorage.setItem("access_token", "mock-token");
+                  window.location.href = "/library";
+                }}
+              >
+                Bỏ qua đăng nhập (Test UI Mode)
+              </Button>
+            </Form.Item>
+          </Form>
+
+          <Button
+            type="link"
             onClick={() => setMode(mode === "login" ? "register" : "login")}
-            className="text-[12.5px] text-muted text-left"
+            style={{ padding: 0, fontSize: 12.5 }}
           >
             {mode === "login" ? "Chưa có tài khoản? Đăng ký ngay" : "Đã có tài khoản? Đăng nhập"}
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-function Field({ label, children }) {
-  return (
-    <label className="flex flex-col gap-1.5">
-      <span className="text-[12.5px] font-medium text-ink">{label}</span>
-      {children}
-    </label>
+          </Button>
+        </div>
+      </Flex>
+    </Flex>
   );
 }
