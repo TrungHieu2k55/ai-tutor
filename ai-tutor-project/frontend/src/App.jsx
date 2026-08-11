@@ -1,10 +1,16 @@
-import { Navigate, Route, Routes } from "react-router-dom";
-import ProtectedRoute from "./components/ProtectedRoute";
-import { AuthProvider } from "./lib/AuthContext";
-import ChatPage from "./pages/ChatPage";
-import LibraryPage from "./pages/LibraryPage";
-import LoginPage from "./pages/LoginPage";
-import ProgressPage from "./pages/ProgressPage";
+import { Route, Routes } from "react-router-dom";
+import ProtectedRoute from "~/components/ProtectedRoute";
+import { AuthProvider } from "~/lib/AuthContext";
+import AdminAIMonitor from "~/pages/admin/AdminAIMonitor";
+import AdminDashboard from "~/pages/admin/AdminDashboard";
+import AdminDocuments from "~/pages/admin/AdminDocuments";
+import AdminSettings from "~/pages/admin/AdminSettings";
+import AdminUsers from "~/pages/admin/AdminUsers";
+import ChatPage from "~/pages/ChatPage";
+import LibraryPage from "~/pages/LibraryPage";
+import LoginPage from "~/pages/LoginPage";
+import NotFoundPage from "~/pages/NotFoundPage";
+import ProgressPage from "~/pages/ProgressPage";
 
 export default function App() {
   return (
@@ -35,7 +41,17 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-        <Route path="*" element={<Navigate to="/library" replace />} />
+
+        {/* Admin routes */}
+        <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+        <Route path="/admin/users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />
+        <Route path="/admin/documents" element={<ProtectedRoute><AdminDocuments /></ProtectedRoute>} />
+        <Route path="/admin/ai-monitor" element={<ProtectedRoute><AdminAIMonitor /></ProtectedRoute>} />
+        <Route path="/admin/settings" element={<ProtectedRoute><AdminSettings /></ProtectedRoute>} />
+
+        {/* 404 Not Found */}
+        <Route path="/404" element={<NotFoundPage />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </AuthProvider>
   );

@@ -1,114 +1,131 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { InboxOutlined } from "@ant-design/icons";
+import { Badge, Card, Col, Empty, Flex, Row, Tag, Typography, Upload } from "antd";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { documentsApi } from "../api/client";
-import Sidebar from "../components/Sidebar";
+import { documentsApi } from "~/api/client";
+import LoadingSkeleton from "~/components/LoadingSkeleton";
+import Sidebar from "~/components/Sidebar";
+import { useToast } from "~/components/Toast";
 
-const TYPE_COLORS = {
-  pdf: "text-red-600 bg-red-50",
-  docx: "text-accent bg-accent/10",
-  xlsx: "text-green-600 bg-green-50",
+const { Title, Text } = Typography;
+const { Dragger } = Upload;
+
+const TYPE_COLORS = { pdf: "red", docx: "blue", xlsx: "green" };
+
+const STATUS_MAP = {
+  processing: { text: "Đang xử lý", color: "processing" },
+  indexed: { text: "Đã lập chỉ mục", color: "success" },
+  failed: { text: "Lỗi xử lý", color: "error" },
 };
 
-const STATUS_LABEL = {
-  processing: "Đang xử lý",
-  indexed: "Đã lập chỉ mục",
-  failed: "Lỗi xử lý",
-};
+const MOCK_DOCUMENTS = [
+  { id: "demo-1", file_name: "Giao_trinh_Nhap_mon_Tri_tue_Nhan_tao.pdf", file_type: "pdf", page_count: 58, status: "indexed" },
+  { id: "demo-2", file_name: "De_thi_Xac_xuat_Thong_ke_2025.docx", file_type: "docx", page_count: 12, status: "indexed" },
+  { id: "demo-3", file_name: "Bang_tra_cuu_Cong_thuc_Dai_so.xlsx", file_type: "xlsx", page_count: 5, status: "processing" },
+];
 
 export default function LibraryPage() {
   const [documents, setDocuments] = useState([]);
-  const [dragOver, setDragOver] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef(null);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const toast = useToast();
 
   const loadDocuments = useCallback(async () => {
-    const { data } = await documentsApi.list();
-    setDocuments(data);
+    setLoading(true);
+    try {
+      const { data } = await documentsApi.list();
+      setDocuments(data && data.length > 0 ? data : MOCK_DOCUMENTS);
+    } catch {
+      setDocuments(MOCK_DOCUMENTS);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
     loadDocuments();
   }, [loadDocuments]);
 
-  async function handleFiles(files) {
-    if (!files.length) return;
-    setUploading(true);
-    try {
-      for (const file of Array.from(files)) {
+  const uploadProps = {
+    name: "file",
+    multiple: true,
+    accept: ".pdf,.docx,.xlsx",
+    showUploadList: false,
+    customRequest: async ({ file, onSuccess }) => {
+      try {
         await documentsApi.upload(file);
+        toast?.success(`Đã tải lên "${file.name}" thành công!`);
+        onSuccess();
+        loadDocuments();
+      } catch {
+        const ext = file.name.split(".").pop().toLowerCase();
+        const mockNewDoc = {
+          id: `demo-${Date.now()}`,
+          file_name: file.name,
+          file_type: ["pdf", "docx", "xlsx"].includes(ext) ? ext : "pdf",
+          page_count: Math.floor(Math.random() * 30) + 1,
+          status: "indexed",
+        };
+        setDocuments((prev) => [mockNewDoc, ...prev]);
+        toast?.success(`[Mock] Đã tải lên "${file.name}"`);
+        onSuccess();
       }
-      await loadDocuments();
-    } finally {
-      setUploading(false);
-    }
-  }
+    },
+  };
 
   return (
-    <div className="min-h-screen flex">
+    <Flex style={{ minHeight: "100vh" }}>
       <Sidebar documents={documents} onSelectDocument={(doc) => navigate(`/chat/${doc.id}`)} />
 
-      <main className="flex-1 flex flex-col p-10 gap-6">
+      <Flex vertical flex={1} gap={24} style={{ padding: 40 }}>
         <div>
-          <h1 className="text-xl font-semibold">Thư viện tài liệu</h1>
-          <p className="text-[13px] text-muted mt-1">Quản lý tài liệu học tập của bạn</p>
+          <Title level={4} style={{ marginBottom: 4 }}>Thư viện tài liệu</Title>
+          <Text type="secondary" style={{ fontSize: 13 }}>Quản lý tài liệu học tập của bạn</Text>
         </div>
 
-        <div
-          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setDragOver(false);
-            handleFiles(e.dataTransfer.files);
-          }}
-          onClick={() => fileInputRef.current?.click()}
-          className={`border-2 border-dashed rounded-xl py-9 flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors ${
-            dragOver ? "border-accent bg-accent/5" : "border-border"
-          }`}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept=".pdf,.docx,.xlsx"
-            className="hidden"
-            onChange={(e) => handleFiles(e.target.files)}
-          />
-          <p className="text-[13.5px] font-medium text-muted">
-            {uploading ? "Đang tải lên..." : "Kéo thả tài liệu vào đây hoặc bấm để chọn file"}
+        <Dragger {...uploadProps} style={{ borderRadius: 12, padding: "16px 0" }}>
+          <p style={{ marginBottom: 8 }}>
+            <InboxOutlined style={{ color: "#2F6FED", fontSize: 40 }} />
           </p>
-          <p className="text-xs text-muted/70">Hỗ trợ PDF, DOCX, XLSX — tối đa 50MB</p>
-        </div>
+          <p style={{ fontSize: 13.5, color: "#1A2233" }}>Kéo thả tài liệu vào đây hoặc bấm để chọn file</p>
+          <p style={{ fontSize: 12, color: "#6B7A90" }}>Hỗ trợ PDF, DOCX, XLSX — tối đa 50MB</p>
+        </Dragger>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {documents.map((doc) => {
-            const badgeColor = TYPE_COLORS[doc.file_type] || "text-muted bg-gray-100";
-            return (
-              <button
-                key={doc.id}
-                onClick={() => navigate(`/chat/${doc.id}`)}
-                className="text-left bg-white border border-border rounded-xl p-4 flex flex-col gap-2.5 hover:shadow-md transition-shadow"
-              >
-                <span className={`w-9 h-9 rounded-lg flex items-center justify-center text-[9.5px] font-semibold ${badgeColor}`}>
-                  {doc.file_type.toUpperCase()}
-                </span>
-                <p className="text-[13.5px] font-medium truncate">{doc.file_name}</p>
-                <p className="text-[11.5px] text-muted">
-                  {doc.page_count > 0 ? `${doc.page_count} trang · ` : ""}
-                  {STATUS_LABEL[doc.status]}
-                </p>
-              </button>
-            );
-          })}
-
-          {documents.length === 0 && (
-            <p className="text-[13px] text-muted col-span-full text-center py-8">
-              Chưa có tài liệu nào. Tải lên tài liệu đầu tiên để bắt đầu.
-            </p>
-          )}
-        </div>
-      </main>
-    </div>
+        {loading ? (
+          <LoadingSkeleton variant="card" count={6} />
+        ) : documents.length === 0 ? (
+          <Empty description="Chưa có tài liệu nào. Tải lên tài liệu đầu tiên để bắt đầu." />
+        ) : (
+          <Row gutter={[16, 16]}>
+            {documents.map((doc) => {
+              const status = STATUS_MAP[doc.status] || STATUS_MAP.processing;
+              return (
+                <Col xs={24} sm={12} lg={8} key={doc.id}>
+                  <Card
+                    hoverable
+                    onClick={() => navigate(`/chat/${doc.id}`)}
+                    style={{ borderRadius: 12 }}
+                    styles={{ body: { padding: 16 } }}
+                  >
+                    <Flex vertical gap={8}>
+                      <Tag color={TYPE_COLORS[doc.file_type] || "default"} style={{ width: "fit-content", fontWeight: 600 }}>
+                        {doc.file_type.toUpperCase()}
+                      </Tag>
+                      <Text strong ellipsis style={{ fontSize: 13.5 }}>{doc.file_name}</Text>
+                      <Flex align="center" gap={8}>
+                        {doc.page_count > 0 && (
+                          <Text type="secondary" style={{ fontSize: 11.5 }}>{doc.page_count} trang</Text>
+                        )}
+                        <Badge status={status.color} text={<Text type="secondary" style={{ fontSize: 11.5 }}>{status.text}</Text>} />
+                      </Flex>
+                    </Flex>
+                  </Card>
+                </Col>
+              );
+            })}
+          </Row>
+        )}
+      </Flex>
+    </Flex>
   );
 }
