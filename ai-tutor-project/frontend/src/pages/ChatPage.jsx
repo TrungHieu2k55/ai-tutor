@@ -1,58 +1,137 @@
-import { FileTextOutlined, SendOutlined } from "@ant-design/icons";
-import { Avatar, Button, Card, Flex, Input, Progress, Spin, Tag, Typography } from "antd";
+import { SendOutlined } from "@ant-design/icons";
+import { Avatar, Button, Card, Flex, Input, Modal, Spin, Tag, Typography } from "antd";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { chatApi, documentsApi } from "~/api/client";
 import Sidebar from "~/components/Sidebar";
+import { useToast } from "~/components/Toast";
+import { useAuth } from "~/lib/AuthContext";
+import { formatMathText } from "~/utils/formatters";
 
-const { Text, Title } = Typography;
-
-const MOCK_DOCUMENTS = [
-  { id: "demo-1", file_name: "Giai_tich_2_chuong4.pdf", file_type: "pdf", page_count: 24, status: "indexed" },
-  { id: "demo-2", file_name: "De_cuong_on_tap.docx", file_type: "docx", page_count: 12, status: "indexed" },
-  { id: "demo-3", file_name: "Bai_giang_xac_suat.pdf", file_type: "pdf", page_count: 48, status: "indexed" },
-  { id: "demo-4", file_name: "Bang_du_lieu_TN.xlsx", file_type: "xlsx", page_count: 5, status: "processing" },
-];
+const { Text } = Typography;
 
 const QUICK_ACTIONS = [
-  "Tóm tắt chương này",
+  "Tóm tắt nội dung chính",
   "Tạo 5 câu hỏi ôn tập",
   "Giải thích lại đơn giản hơn",
-];
-
-const MOCK_HISTORY = [
-  "Ôn tập tích phân bội",
-  "Giải thích phân phối chuẩn",
 ];
 
 export default function ChatPage() {
   const { documentId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const toast = useToast();
   const [documents, setDocuments] = useState([]);
   const [activeDoc, setActiveDoc] = useState(null);
   const [messages, setMessages] = useState([]);
   const [question, setQuestion] = useState("");
   const [asking, setAsking] = useState(false);
   const [latestSources, setLatestSources] = useState([]);
+  const [conversationId, setConversationId] = useState(null);
+  const [conversations, setConversations] = useState([]);
   const bottomRef = useRef(null);
 
+  // Load documents
   useEffect(() => {
     documentsApi
       .list()
       .then(({ data }) => {
-        const docs = data && data.length > 0 ? data : MOCK_DOCUMENTS;
-        setDocuments(docs);
-        setActiveDoc(docs.find((d) => d.id === documentId) || docs[0] || null);
+        setDocuments(data || []);
+        const found = (data || []).find((d) => d.id === documentId);
+        setActiveDoc(found || (data && data[0]) || null);
       })
       .catch(() => {
-        setDocuments(MOCK_DOCUMENTS);
-        setActiveDoc(MOCK_DOCUMENTS.find((d) => d.id === documentId) || MOCK_DOCUMENTS[0]);
+        setDocuments([]);
+        setActiveDoc(null);
       });
   }, [documentId]);
+
+  // Load conversations for this document and auto-select the latest one
+  useEffect(() => {
+    if (!activeDoc) return;
+    chatApi
+      .getConversations(activeDoc.id)
+      .then(({ data }) => {
+        const convs = data || [];
+        setConversations(convs);
+        if (convs.length > 0) {
+          setConversationId(convs[0].id);
+        } else {
+          setConversationId(null);
+          setMessages([]);
+          setLatestSources([]);
+        }
+      })
+      .catch(() => {
+        setConversations([]);
+        setConversationId(null);
+        setMessages([]);
+        setLatestSources([]);
+      });
+  }, [activeDoc]);
+
+  // Load messages when selecting a conversation
+  useEffect(() => {
+    if (!conversationId) return;
+    chatApi
+      .getMessages(conversationId)
+      .then(({ data }) => {
+        const msgs = (data || []).map((m) => ({
+          role: m.role,
+          content: m.content,
+          sources: m.sources ? JSON.parse(m.sources) : [],
+        }));
+        setMessages(msgs);
+        const lastAssistant = [...msgs].reverse().find((m) => m.role === "assistant");
+        setLatestSources(lastAssistant?.sources || []);
+      })
+      .catch(() => setMessages([]));
+  }, [conversationId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  function handleNewConversation() {
+    setConversationId(null);
+    setMessages([]);
+    setLatestSources([]);
+  }
+
+  function handleSelectConversation(conv) {
+    setConversationId(conv.id);
+  }
+
+  function handleDeleteConversation(conv) {
+    Modal.confirm({
+      title: "Xác nhận xoá cuộc trò chuyện",
+      content: `Bạn có chắc muốn xoá lịch sử "${conv.title}"?`,
+      okText: "Xoá",
+      okType: "danger",
+      cancelText: "Huỷ",
+      onOk: async () => {
+        try {
+          await chatApi.deleteConversation(conv.id);
+          toast?.success("Đã xoá cuộc trò chuyện thành công");
+
+          // Nếu đang xoá cuộc trò chuyện hiện tại, reset màn hình
+          if (conversationId === conv.id) {
+            setConversationId(null);
+            setMessages([]);
+            setLatestSources([]);
+          }
+
+          // Cập nhật lại danh sách lịch sử
+          if (activeDoc) {
+            const { data } = await chatApi.getConversations(activeDoc.id);
+            setConversations(data || []);
+          }
+        } catch {
+          toast?.error("Không thể xoá cuộc trò chuyện. Vui lòng thử lại.");
+        }
+      },
+    });
+  }
 
   async function handleAsk(text) {
     const q = text || question;
@@ -64,55 +143,61 @@ export default function ChatPage() {
     setAsking(true);
 
     try {
-      const { data } = await chatApi.ask({ document_id: activeDoc.id, question: q });
+      const { data } = await chatApi.ask({
+        document_id: activeDoc.id,
+        question: q,
+        conversation_id: conversationId || undefined,
+      });
       const sources = data.sources || [];
       setMessages((prev) => [...prev, { role: "assistant", content: data.answer, sources }]);
       setLatestSources(sources);
+
+      if (data.conversation_id && !conversationId) {
+        setConversationId(data.conversation_id);
+        chatApi
+          .getConversations(activeDoc.id)
+          .then(({ data: convs }) => setConversations(convs || []))
+          .catch(() => {});
+      }
+    } catch (err) {
+      const detail = err.response?.data?.detail || "Đã có lỗi xảy ra khi xử lý câu hỏi.";
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: `⚠️ ${detail}` },
+      ]);
+    } finally {
       setAsking(false);
-    } catch {
-      setTimeout(() => {
-        const mockSources = [
-          { page: 12, snippet: "Phép đổi biến sang toạ độ cực áp dụng khi miền D là hình tròn tâm O." },
-          { page: 13, snippet: "Jacobian của phép biến đổi bằng r, do đó dS = r dr dθ." },
-        ];
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: `Dùng khi miền lấy tích phân có dạng hình tròn, hình vành khuyên hoặc biểu thức có x² + y². Khi đó đặt x = r·cosθ, y = r·sinθ sẽ giúp miền tích phân trở nên đơn giản hơn nhiều.`,
-            sources: mockSources,
-          },
-        ]);
-        setLatestSources(mockSources);
-        setAsking(false);
-      }, 500);
     }
   }
 
-  // Tính tiến độ mock
-  const reviewProgress = { current: 16, total: 25 };
-  const reviewPercent = Math.round((reviewProgress.current / reviewProgress.total) * 100);
+  const chatHistoryItems = conversations.map((c) => ({
+    id: c.id,
+    title: c.title,
+  }));
 
   return (
-    <Flex style={{ minHeight: "100vh" }}>
+    <Flex style={{ height: "100vh", overflow: "hidden" }}>
       <Sidebar
         documents={documents}
         activeDocumentId={activeDoc?.id}
         onSelectDocument={(doc) => navigate(`/chat/${doc.id}`)}
-        chatHistory={MOCK_HISTORY}
+        chatHistory={chatHistoryItems}
+        onSelectConversation={handleSelectConversation}
+        onDeleteConversation={handleDeleteConversation}
+        onNewConversation={handleNewConversation}
       />
 
-      {/* Main chat area */}
-      <Flex vertical flex={1} style={{ minWidth: 0 }}>
-        {/* Header */}
+      {/* Main chat area — Cố định chiều cao 100vh */}
+      <Flex vertical flex={1} style={{ height: "100vh", minWidth: 0 }}>
+        {/* Header (Cố định ở đỉnh) */}
         <Flex
           align="center"
           justify="space-between"
-          style={{ padding: "16px 28px", borderBottom: "1px solid #DCE3EE" }}
+          style={{ padding: "16px 28px", borderBottom: "1px solid #DCE3EE", background: "#fff", flexShrink: 0 }}
         >
           <div>
             <Text strong style={{ fontSize: 16 }}>
-              {activeDoc ? `Giải tích 2 — chương 4: Tích phân bội` : "Chọn một tài liệu"}
+              {activeDoc ? activeDoc.file_name : "Chọn một tài liệu"}
             </Text>
             {activeDoc && (
               <Flex align="center" gap={8} style={{ marginTop: 4 }}>
@@ -124,10 +209,10 @@ export default function ChatPage() {
           </div>
         </Flex>
 
-        {/* Messages area */}
+        {/* Messages area — ĐÂY LÀ KHU VỰC DUY NHẤT CUỘN TRONG NỘI DUNG CHAT */}
         <Flex
           vertical
-          gap={20}
+          gap={24}
           flex={1}
           style={{ overflowY: "auto", padding: "28px 40px" }}
         >
@@ -141,25 +226,28 @@ export default function ChatPage() {
 
           {messages.map((m, i) => (
             <Flex key={i} justify={m.role === "user" ? "flex-end" : "flex-start"}>
-              <Flex gap={10} style={{ maxWidth: 520 }}>
+              <Flex gap={12} style={{ maxWidth: m.role === "user" ? "70%" : "85%", width: "100%" }}>
                 {m.role === "assistant" && (
-                  <Avatar size={28} style={{ backgroundColor: "#0E1B2E", flexShrink: 0, marginTop: 4 }}>
+                  <Avatar size={32} style={{ backgroundColor: "#0E1B2E", flexShrink: 0, marginTop: 2 }}>
                     AI
                   </Avatar>
                 )}
-                <div>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <div
                     style={{
                       borderRadius: 16,
-                      padding: "12px 16px",
+                      padding: "14px 20px",
                       fontSize: 14,
-                      lineHeight: 1.7,
+                      lineHeight: 1.75,
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-word",
+                      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
                       ...(m.role === "user"
-                        ? { background: "#0E1B2E", color: "#fff", borderTopRightRadius: 4 }
-                        : { background: "#F3F6FB", color: "#1A2233", borderTopLeftRadius: 4 }),
+                        ? { background: "#0E1B2E", color: "#fff", borderTopRightRadius: 4, marginLeft: "auto" }
+                        : { background: "#FFFFFF", color: "#1A2233", border: "1px solid #E2E8F0", borderTopLeftRadius: 4 }),
                     }}
                   >
-                    {m.content}
+                    {formatMathText(m.content)}
                   </div>
                 </div>
               </Flex>
@@ -167,17 +255,17 @@ export default function ChatPage() {
           ))}
 
           {asking && (
-            <Flex align="center" gap={8}>
+            <Flex align="center" gap={10} style={{ background: "#fff", padding: "12px 18px", borderRadius: 12, width: "fit-content", border: "1px solid #E2E8F0" }}>
               <Spin size="small" />
-              <Text type="secondary" style={{ fontSize: 13 }}>Đang tra cứu tài liệu...</Text>
+              <Text type="secondary" style={{ fontSize: 13 }}>AI đang suy nghĩ và tra cứu tài liệu...</Text>
             </Flex>
           )}
           <div ref={bottomRef} />
         </Flex>
 
-        {/* Quick action chips */}
+        {/* Quick action chips (Cố định phía trên ô nhập) */}
         {messages.length > 0 && (
-          <Flex gap={8} wrap="wrap" style={{ padding: "0 40px 8px" }}>
+          <Flex gap={8} wrap="wrap" style={{ padding: "0 40px 8px", flexShrink: 0 }}>
             {QUICK_ACTIONS.map((action) => (
               <Button
                 key={action}
@@ -196,14 +284,18 @@ export default function ChatPage() {
           </Flex>
         )}
 
-        {/* Input area */}
-        <Flex gap={10} style={{ padding: "8px 40px 24px" }}>
+        {/* Footer Input area (Cố định ở đáy trang) */}
+        <Flex gap={10} style={{ padding: "8px 40px 24px", flexShrink: 0, background: "#fff" }}>
           <Input
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             onPressEnter={() => handleAsk()}
-            disabled={!activeDoc}
-            placeholder="Hỏi gì đó về tài liệu của bạn..."
+            disabled={!activeDoc || activeDoc.status !== "indexed"}
+            placeholder={
+              activeDoc?.status === "indexed"
+                ? "Hỏi gì đó về tài liệu của bạn..."
+                : "Tài liệu chưa sẵn sàng..."
+            }
             size="large"
             style={{ borderRadius: 12 }}
           />
@@ -212,19 +304,20 @@ export default function ChatPage() {
             icon={<SendOutlined />}
             size="large"
             onClick={() => handleAsk()}
-            disabled={!activeDoc || asking}
+            disabled={!activeDoc || asking || activeDoc.status !== "indexed"}
             loading={asking}
             style={{ borderRadius: 12, background: "#2F6FED" }}
           />
         </Flex>
       </Flex>
 
-      {/* Right panel — Nguồn tham chiếu & Tiến độ */}
+      {/* Right panel — Nguồn tham chiếu (Cố định góc phải, cuộn riêng) */}
       <Flex
         vertical
         gap={16}
         style={{
-          width: 260,
+          width: 280,
+          height: "100vh",
           flexShrink: 0,
           borderLeft: "1px solid #DCE3EE",
           padding: "20px 16px",
@@ -257,30 +350,6 @@ export default function ChatPage() {
             Gửi câu hỏi để xem nguồn trích dẫn tại đây.
           </Text>
         )}
-
-        {/* Tiến độ ôn tập */}
-        <Card
-          size="small"
-          style={{
-            borderRadius: 10,
-            border: "1px solid #2F6FED",
-            background: "rgba(47, 111, 237, 0.04)",
-            marginTop: 8,
-          }}
-          styles={{ body: { padding: "14px 16px" } }}
-        >
-          <Text strong style={{ fontSize: 13 }}>Tiến độ ôn tập</Text>
-          <Progress
-            percent={reviewPercent}
-            strokeColor="#2F6FED"
-            trailColor="#DCE3EE"
-            size="small"
-            style={{ marginTop: 8, marginBottom: 4 }}
-          />
-          <Text type="secondary" style={{ fontSize: 11 }}>
-            {reviewProgress.current}/{reviewProgress.total} khái niệm đã nắm vững
-          </Text>
-        </Card>
       </Flex>
     </Flex>
   );

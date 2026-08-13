@@ -1,11 +1,12 @@
-import { InboxOutlined } from "@ant-design/icons";
-import { Badge, Card, Col, Empty, Flex, Row, Tag, Typography, Upload } from "antd";
+import { DeleteOutlined, InboxOutlined } from "@ant-design/icons";
+import { Badge, Button, Card, Col, Empty, Flex, Modal, Row, Tag, Typography, Upload } from "antd";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { documentsApi } from "~/api/client";
 import LoadingSkeleton from "~/components/LoadingSkeleton";
 import Sidebar from "~/components/Sidebar";
 import { useToast } from "~/components/Toast";
+import { DOCUMENT_EXT_REGEX } from "~/utils/validators";
 
 const { Title, Text } = Typography;
 const { Dragger } = Upload;
@@ -18,12 +19,6 @@ const STATUS_MAP = {
   failed: { text: "Lỗi xử lý", color: "error" },
 };
 
-const MOCK_DOCUMENTS = [
-  { id: "demo-1", file_name: "Giao_trinh_Nhap_mon_Tri_tue_Nhan_tao.pdf", file_type: "pdf", page_count: 58, status: "indexed" },
-  { id: "demo-2", file_name: "De_thi_Xac_xuat_Thong_ke_2025.docx", file_type: "docx", page_count: 12, status: "indexed" },
-  { id: "demo-3", file_name: "Bang_tra_cuu_Cong_thuc_Dai_so.xlsx", file_type: "xlsx", page_count: 5, status: "processing" },
-];
-
 export default function LibraryPage() {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,9 +29,10 @@ export default function LibraryPage() {
     setLoading(true);
     try {
       const { data } = await documentsApi.list();
-      setDocuments(data && data.length > 0 ? data : MOCK_DOCUMENTS);
+      setDocuments(data || []);
     } catch {
-      setDocuments(MOCK_DOCUMENTS);
+      toast?.error("Không thể tải danh sách tài liệu. Vui lòng thử lại.");
+      setDocuments([]);
     } finally {
       setLoading(false);
     }
@@ -46,29 +42,48 @@ export default function LibraryPage() {
     loadDocuments();
   }, [loadDocuments]);
 
+  const handleDeleteDocument = (e, doc) => {
+    e.stopPropagation(); // Ngăn mở trang chat
+    Modal.confirm({
+      title: "Xác nhận xoá tài liệu",
+      content: `Bạn có chắc muốn xoá "${doc.file_name}"? Mọi tin nhắn liên quan sẽ bị xoá vĩnh viễn.`,
+      okText: "Xoá",
+      okType: "danger",
+      cancelText: "Huỷ",
+      onOk: async () => {
+        try {
+          await documentsApi.delete(doc.id);
+          toast?.success("Đã xoá tài liệu thành công");
+          loadDocuments();
+        } catch (err) {
+          toast?.error(err.response?.data?.detail || "Xoá tài liệu thất bại");
+        }
+      },
+    });
+  };
+
   const uploadProps = {
     name: "file",
     multiple: true,
-    accept: ".pdf,.docx,.xlsx",
+    accept: ".pdf,.docx,.txt,.xlsx",
     showUploadList: false,
-    customRequest: async ({ file, onSuccess }) => {
+    beforeUpload: (file) => {
+      const isValid = DOCUMENT_EXT_REGEX.test(file.name);
+      if (!isValid) {
+        toast?.error(`File "${file.name}" không hợp lệ. Chỉ chấp nhận .pdf, .docx, .txt`);
+      }
+      return isValid || Upload.LIST_IGNORE;
+    },
+    customRequest: async ({ file, onSuccess, onError }) => {
       try {
         await documentsApi.upload(file);
         toast?.success(`Đã tải lên "${file.name}" thành công!`);
         onSuccess();
         loadDocuments();
-      } catch {
-        const ext = file.name.split(".").pop().toLowerCase();
-        const mockNewDoc = {
-          id: `demo-${Date.now()}`,
-          file_name: file.name,
-          file_type: ["pdf", "docx", "xlsx"].includes(ext) ? ext : "pdf",
-          page_count: Math.floor(Math.random() * 30) + 1,
-          status: "indexed",
-        };
-        setDocuments((prev) => [mockNewDoc, ...prev]);
-        toast?.success(`[Mock] Đã tải lên "${file.name}"`);
-        onSuccess();
+      } catch (err) {
+        const detail = err.response?.data?.detail || "Tải lên thất bại";
+        toast?.error(`Lỗi: ${detail}`);
+        onError(err);
       }
     },
   };
@@ -104,13 +119,23 @@ export default function LibraryPage() {
                   <Card
                     hoverable
                     onClick={() => navigate(`/chat/${doc.id}`)}
-                    style={{ borderRadius: 12 }}
+                    style={{ borderRadius: 12, position: "relative" }}
                     styles={{ body: { padding: 16 } }}
                   >
                     <Flex vertical gap={8}>
-                      <Tag color={TYPE_COLORS[doc.file_type] || "default"} style={{ width: "fit-content", fontWeight: 600 }}>
-                        {doc.file_type.toUpperCase()}
-                      </Tag>
+                      <Flex justify="space-between" align="center">
+                        <Tag color={TYPE_COLORS[doc.file_type] || "default"} style={{ width: "fit-content", fontWeight: 600 }}>
+                          {doc.file_type.toUpperCase()}
+                        </Tag>
+                        <Button
+                          type="text"
+                          danger
+                          size="small"
+                          icon={<DeleteOutlined />}
+                          onClick={(e) => handleDeleteDocument(e, doc)}
+                          style={{ opacity: 0.7 }}
+                        />
+                      </Flex>
                       <Text strong ellipsis style={{ fontSize: 13.5 }}>{doc.file_name}</Text>
                       <Flex align="center" gap={8}>
                         {doc.page_count > 0 && (

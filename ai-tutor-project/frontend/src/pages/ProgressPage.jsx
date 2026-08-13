@@ -1,20 +1,11 @@
 import { BookOutlined, CloudSyncOutlined, FileTextOutlined } from "@ant-design/icons";
-import { Badge, Card, Col, Empty, Flex, List, Row, Statistic, Typography } from "antd";
+import { Badge, Card, Col, Empty, Flex, Row, Statistic, Typography } from "antd";
 import { useEffect, useState } from "react";
 import { documentsApi } from "~/api/client";
 import LoadingSkeleton from "~/components/LoadingSkeleton";
 import Sidebar from "~/components/Sidebar";
 
 const { Title, Text } = Typography;
-
-// Ghi chú: backend hiện chưa có endpoint tổng hợp tiến độ học tập theo chủ đề.
-// Tạm thời trang này tính nhanh từ số tài liệu đã tải; khi có endpoint
-// GET /progress trả về { topics: [{name, percent}], stats: {...} } thì thay bằng dữ liệu thật.
-const MOCK_DOCUMENTS = [
-  { id: "demo-1", file_name: "Giao_trinh_Nhap_mon_Tri_tue_Nhan_tao.pdf", file_type: "pdf", page_count: 58, status: "indexed" },
-  { id: "demo-2", file_name: "De_thi_Xac_xuat_Thong_ke_2025.docx", file_type: "docx", page_count: 12, status: "indexed" },
-  { id: "demo-3", file_name: "Bang_tra_cuu_Cong_thuc_Dai_so.xlsx", file_type: "xlsx", page_count: 5, status: "processing" },
-];
 
 const STATUS_MAP = {
   indexed: { text: "Sẵn sàng hỏi đáp", status: "success" },
@@ -30,8 +21,8 @@ export default function ProgressPage() {
     setLoading(true);
     documentsApi
       .list()
-      .then(({ data }) => setDocuments(data && data.length > 0 ? data : MOCK_DOCUMENTS))
-      .catch(() => setDocuments(MOCK_DOCUMENTS))
+      .then(({ data }) => setDocuments(data || []))
+      .catch(() => setDocuments([]))
       .finally(() => setLoading(false));
   }, []);
 
@@ -87,19 +78,27 @@ export default function ProgressPage() {
           ) : documents.length === 0 ? (
             <Empty description="Chưa có dữ liệu — hãy tải tài liệu ở Thư viện trước." style={{ marginTop: 24 }} />
           ) : (
-            <List
-              style={{ marginTop: 12 }}
-              dataSource={documents}
-              renderItem={(doc) => {
+            <Flex vertical gap={8} style={{ marginTop: 12 }}>
+              {documents.map((doc) => {
                 const s = STATUS_MAP[doc.status] || STATUS_MAP.processing;
                 return (
-                  <List.Item style={{ padding: "10px 14px", borderRadius: 12, marginBottom: 8, background: "#fff", border: "1px solid #DCE3EE" }}>
+                  <Flex
+                    key={doc.id}
+                    align="center"
+                    justify="space-between"
+                    style={{
+                      padding: "10px 14px",
+                      borderRadius: 12,
+                      background: "#fff",
+                      border: "1px solid #DCE3EE",
+                    }}
+                  >
                     <Text ellipsis style={{ fontSize: 13, flex: 1 }}>{doc.file_name}</Text>
                     <Badge status={s.status} text={<Text type="secondary" style={{ fontSize: 12 }}>{s.text}</Text>} />
-                  </List.Item>
+                  </Flex>
                 );
-              }}
-            />
+              })}
+            </Flex>
           )}
         </div>
       </Flex>

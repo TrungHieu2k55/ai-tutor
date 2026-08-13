@@ -1,50 +1,82 @@
-import { ArrowUpOutlined } from "@ant-design/icons";
-import { Avatar, Card, Col, Flex, Row, Statistic, Table, Tag, Typography } from "antd";
+import { Card, Col, Flex, Row, Skeleton, Table, Tag, Typography } from "antd";
+import { useEffect, useState } from "react";
+import { adminApi } from "~/api/client";
 import AdminSidebar from "~/components/AdminSidebar";
 
 const { Title, Text } = Typography;
 
-// Mock data khớp Figma
-const MOCK_USERS = [
-  { key: "1", name: "Nguyễn An", email: "an.nguyen@vku.edu.vn", joined: "12/03/2026", doc_count: 6, is_active: true },
-  { key: "2", name: "Trần Bảo", email: "bao.tran@vku.edu.vn", joined: "18/03/2026", doc_count: 3, is_active: true },
-  { key: "3", name: "Lê Minh Thư", email: "thu.le@vku.edu.vn", joined: "02/04/2026", doc_count: 11, is_active: true },
-  { key: "4", name: "Phạm Quang", email: "quang.pham@vku.edu.vn", joined: "15/04/2026", doc_count: 1, is_active: false },
-];
-
-const columns = [
-  {
-    title: "Tên",
-    dataIndex: "name",
-    key: "name",
-    render: (name) => (
-      <Flex align="center" gap={10}>
-        <Avatar style={{ backgroundColor: "#3A5686", fontSize: 13, flexShrink: 0 }} size={32}>
-          {name.charAt(0)}
-        </Avatar>
-        <Text strong style={{ fontSize: 13 }}>{name}</Text>
-      </Flex>
-    ),
-  },
-  { title: "Email", dataIndex: "email", key: "email", render: (e) => <Text style={{ fontSize: 13 }}>{e}</Text> },
-  { title: "Ngày tham gia", dataIndex: "joined", key: "joined", render: (d) => <Text style={{ fontSize: 13 }}>{d}</Text> },
-  { title: "Số tài liệu", dataIndex: "doc_count", key: "doc_count", render: (n) => <Text style={{ fontSize: 13 }}>{n}</Text> },
-  {
-    title: "Trạng thái",
-    dataIndex: "is_active",
-    key: "is_active",
-    render: (active) => (
-      <Tag
-        color={active ? "green" : "red"}
-        style={{ borderRadius: 12, fontSize: 12, padding: "2px 10px" }}
-      >
-        {active ? "Hoạt động" : "Đã khoá"}
-      </Tag>
-    ),
-  },
-];
-
 export default function AdminDashboard() {
+  const [stats, setStats] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [statsRes, usersRes] = await Promise.all([
+          adminApi.getStats(),
+          adminApi.getUsers(),
+        ]);
+        setStats(statsRes.data);
+        setUsers(usersRes.data || []);
+      } catch {
+        // fallback
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  const columns = [
+    {
+      title: "Tên",
+      dataIndex: "full_name",
+      key: "full_name",
+      render: (name) => (
+        <Text strong style={{ fontSize: 13 }}>{name}</Text>
+      ),
+    },
+    {
+      title: "Email",
+      dataIndex: "email",
+      key: "email",
+      render: (e) => <Text style={{ fontSize: 13 }}>{e}</Text>,
+    },
+    {
+      title: "Vai trò",
+      dataIndex: "role",
+      key: "role",
+      render: (role) => (
+        <Tag color={role === "admin" ? "blue" : "default"}>
+          {role === "admin" ? "Quản trị" : "Sinh viên"}
+        </Tag>
+      ),
+    },
+    {
+      title: "Trạng thái",
+      dataIndex: "is_active",
+      key: "is_active",
+      render: (active) => (
+        <Tag
+          color={active ? "green" : "red"}
+          style={{ borderRadius: 12, fontSize: 12, padding: "2px 10px" }}
+        >
+          {active ? "Hoạt động" : "Đã khoá"}
+        </Tag>
+      ),
+    },
+  ];
+
+  const statCards = stats
+    ? [
+        { label: "Người dùng", value: stats.total_users, extra: `+${stats.new_users_week}` },
+        { label: "Tài liệu đã tải", value: stats.total_documents, extra: `${stats.indexed_count} indexed` },
+        { label: "Câu hỏi đã xử lý", value: stats.total_messages, extra: null },
+        { label: "Dung lượng dùng", value: stats.storage_gb, unit: "GB" },
+      ]
+    : [];
+
   return (
     <Flex style={{ minHeight: "100vh" }}>
       <AdminSidebar />
@@ -55,44 +87,34 @@ export default function AdminDashboard() {
           <Text type="secondary" style={{ fontSize: 13 }}>Theo dõi hoạt động và tình trạng nền tảng AI Tutor</Text>
         </div>
 
-        {/* Stat cards — khớp Figma */}
+        {/* Stat cards */}
         <Row gutter={[16, 16]}>
-          <Col xs={24} sm={12} lg={6}>
-            <Card style={{ borderRadius: 12 }} styles={{ body: { padding: "20px 24px" } }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>Người dùng</Text>
-              <Flex align="baseline" gap={8} style={{ marginTop: 4 }}>
-                <span style={{ fontSize: 28, fontWeight: 700, color: "#1A2233" }}>312</span>
-                <Text style={{ fontSize: 12, color: "#2F6FED" }}>+18</Text>
-              </Flex>
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Card style={{ borderRadius: 12 }} styles={{ body: { padding: "20px 24px" } }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>Tài liệu đã tải</Text>
-              <Flex align="baseline" gap={8} style={{ marginTop: 4 }}>
-                <span style={{ fontSize: 28, fontWeight: 700, color: "#1A2233" }}>1,204</span>
-                <Text style={{ fontSize: 12, color: "#2F6FED" }}>+64</Text>
-              </Flex>
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Card style={{ borderRadius: 12 }} styles={{ body: { padding: "20px 24px" } }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>Câu hỏi đã xử lý</Text>
-              <Flex align="baseline" gap={8} style={{ marginTop: 4 }}>
-                <span style={{ fontSize: 28, fontWeight: 700, color: "#1A2233" }}>9,842</span>
-                <Text style={{ fontSize: 12, color: "#2F6FED" }}>+512</Text>
-              </Flex>
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Card style={{ borderRadius: 12 }} styles={{ body: { padding: "20px 24px" } }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>Dung lượng dùng</Text>
-              <Flex align="baseline" gap={8} style={{ marginTop: 4 }}>
-                <span style={{ fontSize: 28, fontWeight: 700, color: "#1A2233" }}>18.4</span>
-                <Text style={{ fontSize: 16, fontWeight: 600, color: "#1A2233" }}>GB</Text>
-              </Flex>
-            </Card>
-          </Col>
+          {loading
+            ? Array.from({ length: 4 }).map((_, i) => (
+                <Col xs={24} sm={12} lg={6} key={i}>
+                  <Card style={{ borderRadius: 12 }} styles={{ body: { padding: "20px 24px" } }}>
+                    <Skeleton active paragraph={{ rows: 1 }} title={false} />
+                  </Card>
+                </Col>
+              ))
+            : statCards.map((s, i) => (
+                <Col xs={24} sm={12} lg={6} key={i}>
+                  <Card style={{ borderRadius: 12 }} styles={{ body: { padding: "20px 24px" } }}>
+                    <Text type="secondary" style={{ fontSize: 12 }}>{s.label}</Text>
+                    <Flex align="baseline" gap={8} style={{ marginTop: 4 }}>
+                      <span style={{ fontSize: 28, fontWeight: 700, color: "#1A2233" }}>
+                        {typeof s.value === "number" ? s.value.toLocaleString() : s.value}
+                      </span>
+                      {s.unit && (
+                        <Text style={{ fontSize: 16, fontWeight: 600, color: "#1A2233" }}>{s.unit}</Text>
+                      )}
+                      {s.extra && (
+                        <Text style={{ fontSize: 12, color: "#2F6FED" }}>{s.extra}</Text>
+                      )}
+                    </Flex>
+                  </Card>
+                </Col>
+              ))}
         </Row>
 
         {/* Người dùng gần đây */}
@@ -102,10 +124,11 @@ export default function AdminDashboard() {
           styles={{ body: { padding: 0 } }}
         >
           <Table
-            dataSource={MOCK_USERS}
+            dataSource={users.slice(0, 10).map((u) => ({ ...u, key: u.id }))}
             columns={columns}
             pagination={false}
             size="middle"
+            loading={loading}
             style={{ fontSize: 13 }}
           />
         </Card>

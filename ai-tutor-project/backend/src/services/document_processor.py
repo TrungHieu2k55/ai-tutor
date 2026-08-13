@@ -58,6 +58,11 @@ def process_document(file_path: str, file_type: str) -> list[TextChunk]:
         raise ValueError(f"Định dạng chưa được hỗ trợ: {file_type}")
 
     all_chunks: list[TextChunk] = []
+    global_idx = 0
     for text, page_num in pages:
-        all_chunks.extend(chunk_text(text, page_num))
+        page_chunks = chunk_text(text, page_num)
+        for pc in page_chunks:
+            pc.chunk_index = global_idx
+            global_idx += 1
+        all_chunks.extend(page_chunks)
     return all_chunks

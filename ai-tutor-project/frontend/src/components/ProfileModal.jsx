@@ -1,35 +1,87 @@
 import { Avatar, Button, Divider, Flex, Form, Input, Modal, Typography, Upload } from "antd";
 import { useState } from "react";
+import { authApi } from "~/api/client";
+import { useToast } from "~/components/Toast";
+import { useAuth } from "~/lib/AuthContext";
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 
-/**
- * ProfileModal — Popup hồ sơ cá nhân (khớp Figma 07)
- *
- * Props:
- *   open:       boolean — hiện/ẩn modal
- *   onClose:    () => void
- *   user:       { full_name, email } — thông tin user hiện tại
- *   onSave:     (values) => void — callback khi lưu
- */
 export default function ProfileModal({ open, onClose, user = {}, onSave }) {
   const [form] = Form.useForm();
-  const [avatarUrl, setAvatarUrl] = useState(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const { updateUser } = useAuth();
+  const toast = useToast();
 
   function handleOpen() {
     form.setFieldsValue({
-      full_name: user.full_name || "Nguyễn An",
-      email: user.email || "an.nguyen@vku.edu.vn",
+      full_name: user.full_name || "",
+      email: user.email || "",
+      current_password: "",
+      new_password: "",
+      confirm_password: "",
     });
   }
 
-  function handleSave(values) {
-    onSave?.(values);
-    onClose?.();
+  async function handleSave(values) {
+    setSaving(true);
+    try {
+      // 1. Update Profile (Họ tên) nếu có thay đổi
+      if (values.full_name && values.full_name !== user.full_name) {
+        const { data } = await authApi.updateProfile({ full_name: values.full_name });
+        updateUser(data);
+        toast?.success("Đã cập nhật thông tin cá nhân");
+      }
+
+      // 2. Change Password nếu có nhập mật khẩu mới
+      if (values.new_password) {
+        if (!values.current_password) {
+          toast?.error("Vui lòng nhập mật khẩu hiện tại để đổi mật khẩu");
+          setSaving(false);
+          return;
+        }
+        await authApi.changePassword({
+          current_password: values.current_password,
+          new_password: values.new_password,
+        });
+        toast?.success("Đã đổi mật khẩu thành công!");
+      }
+
+      onSave?.(values);
+      onClose?.();
+    } catch (err) {
+      toast?.error(err.response?.data?.detail || "Cập nhật thất bại. Vui lòng thử lại.");
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function handleRemoveAvatar() {
-    setAvatarUrl(null);
+  async function handleAvatarUpload(file) {
+    setUploadingAvatar(true);
+    try {
+      const { data } = await authApi.uploadAvatar(file);
+      updateUser(data);
+      toast?.success("Đã cập nhật ảnh đại diện!");
+    } catch (err) {
+      toast?.error(err.response?.data?.detail || "Upload ảnh thất bại. Vui lòng kiểm tra lại.");
+    } finally {
+      setUploadingAvatar(false);
+    }
+    return false;
+  }
+
+  async function handleRemoveAvatar() {
+    if (!user.avatar_url) return;
+    setUploadingAvatar(true);
+    try {
+      const { data } = await authApi.deleteAvatar();
+      updateUser(data);
+      toast?.success("Đã xoá ảnh đại diện!");
+    } catch (err) {
+      toast?.error(err.response?.data?.detail || "Xoá ảnh thất bại.");
+    } finally {
+      setUploadingAvatar(false);
+    }
   }
 
   return (
@@ -41,7 +93,7 @@ export default function ProfileModal({ open, onClose, user = {}, onSave }) {
       footer={
         <Flex justify="flex-end" gap={8}>
           <Button onClick={onClose} style={{ minWidth: 100 }}>Huỷ</Button>
-          <Button type="primary" onClick={() => form.submit()} style={{ minWidth: 140 }}>
+          <Button type="primary" onClick={() => form.submit()} loading={saving} style={{ minWidth: 140 }}>
             Lưu thay đổi
           </Button>
         </Flex>
@@ -53,7 +105,7 @@ export default function ProfileModal({ open, onClose, user = {}, onSave }) {
       <Flex align="center" gap={16} style={{ marginBottom: 24, marginTop: 8 }}>
         <Avatar
           size={56}
-          src={avatarUrl}
+          src={user.avatar_url}
           style={{ backgroundColor: "#3A5686", fontSize: 22, flexShrink: 0 }}
         >
           {(user.full_name || "A").charAt(0).toUpperCase()}
@@ -61,25 +113,28 @@ export default function ProfileModal({ open, onClose, user = {}, onSave }) {
         <Flex vertical gap={4}>
           <Upload
             showUploadList={false}
-            beforeUpload={(file) => {
-              const url = URL.createObjectURL(file);
-              setAvatarUrl(url);
-              return false;
-            }}
+            beforeUpload={handleAvatarUpload}
+            accept="image/*"
           >
-            <Button type="primary" size="small">Tải ảnh lên</Button>
+            <Button type="primary" size="small" loading={uploadingAvatar}>
+              Tải ảnh lên
+            </Button>
           </Upload>
-          <Button
-            type="link"
-            danger
-            size="small"
-            style={{ padding: 0, height: "auto" }}
-            onClick={handleRemoveAvatar}
-          >
-            Xoá ảnh
-          </Button>
+          {user.avatar_url && (
+            <Button
+              type="link"
+              danger
+              size="small"
+              disabled={uploadingAvatar}
+              style={{ padding: 0, height: "auto" }}
+              onClick={handleRemoveAvatar}
+            >
+              Xoá ảnh
+            </Button>
+          )}
         </Flex>
       </Flex>
+
 
       <Form form={form} layout="vertical" onFinish={handleSave} requiredMark={false}>
         <Form.Item label="Họ và tên" name="full_name" rules={[{ required: true, message: "Nhập họ tên" }]}>
@@ -99,7 +154,7 @@ export default function ProfileModal({ open, onClose, user = {}, onSave }) {
         </Form.Item>
 
         <Form.Item label="Mật khẩu mới" name="new_password">
-          <Input.Password size="large" placeholder="••••••" />
+          <Input.Password size="large" placeholder="••••••••" />
         </Form.Item>
 
         <Form.Item
