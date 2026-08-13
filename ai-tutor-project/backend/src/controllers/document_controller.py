@@ -17,9 +17,11 @@ async def upload_document(
     return await DocumentService.upload_document(background_tasks, file, user)
 
 
+@router.get("", response_model=list[DocumentOut])
 @router.get("/", response_model=list[DocumentOut])
 async def list_my_documents(user: User = Depends(get_current_user)):
     return await DocumentService.list_my_documents(user)
+
 
 
 @router.delete("/{document_id}")
