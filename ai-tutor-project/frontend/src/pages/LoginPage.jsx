@@ -1,7 +1,7 @@
 import { LockOutlined, MailOutlined, UserOutlined } from "@ant-design/icons";
 import { Alert, Button, Flex, Form, Input, Typography } from "antd";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import aiTutorLogo from "~/assets/ai_tutor.svg";
 import tutorBanner from "~/assets/tutor_banner.jpg";
 import { useAuth } from "~/lib/AuthContext";
@@ -13,8 +13,13 @@ export default function LoginPage() {
   const [mode, setMode] = useState("login");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login, register } = useAuth();
+  const { user, isAuthenticated, loading: authLoading, login, register } = useAuth();
   const navigate = useNavigate();
+
+  if (!authLoading && isAuthenticated) {
+    return <Navigate to={user?.role === "admin" ? "/admin" : "/library"} replace />;
+  }
+
 
   async function handleSubmit(values) {
     setError("");

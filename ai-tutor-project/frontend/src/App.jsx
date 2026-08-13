@@ -1,6 +1,7 @@
-import { Route, Routes } from "react-router-dom";
+import { Spin } from "antd";
+import { Navigate, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "~/components/ProtectedRoute";
-import { AuthProvider } from "~/lib/AuthContext";
+import { AuthProvider, useAuth } from "~/lib/AuthContext";
 import AdminAIMonitor from "~/pages/admin/AdminAIMonitor";
 import AdminDashboard from "~/pages/admin/AdminDashboard";
 import AdminDocuments from "~/pages/admin/AdminDocuments";
@@ -12,11 +13,28 @@ import LoginPage from "~/pages/LoginPage";
 import NotFoundPage from "~/pages/NotFoundPage";
 import ProgressPage from "~/pages/ProgressPage";
 
+function RootRedirect() {
+  const { user, isAuthenticated, loading } = useAuth();
+  if (loading) {
+    return (
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh" }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
+  if (isAuthenticated) {
+    return <Navigate to={user?.role === "admin" ? "/admin" : "/library"} replace />;
+  }
+  return <Navigate to="/login" replace />;
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <Routes>
+        <Route path="/" element={<RootRedirect />} />
         <Route path="/login" element={<LoginPage />} />
+
         <Route
           path="/library"
           element={
