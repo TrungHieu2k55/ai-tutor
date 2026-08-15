@@ -40,6 +40,10 @@ class CreateConversation(BaseModel):
     title: str = "Cuộc trò chuyện mới"
 
 
+class RenameConversation(BaseModel):
+    title: str
+
+
 class ConversationOut(BaseModel):
     id: PydanticObjectId
     document_id: str

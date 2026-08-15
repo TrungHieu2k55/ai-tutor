@@ -1,10 +1,11 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "https://ripe-walls-train.loca.lt",
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000",
+  headers: {
+    "bypass-tunnel-reminder": "true",
+  },
 });
-
-
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("access_token");
@@ -14,6 +15,10 @@ api.interceptors.request.use((config) => {
 
 export const authApi = {
   register: (payload) => api.post("/auth/register", payload),
+  verifyOtp: (payload) => api.post("/auth/verify-otp", payload),
+  resendOtp: (payload) => api.post("/auth/resend-otp", payload),
+  forgotPassword: (payload) => api.post("/auth/forgot-password", payload),
+  resetPassword: (payload) => api.post("/auth/reset-password", payload),
   login: (payload) => api.post("/auth/login", payload),
   me: () => api.get("/auth/me"),
   updateProfile: (payload) => api.put("/auth/profile", payload),
@@ -27,8 +32,6 @@ export const authApi = {
   deleteAvatar: () => api.delete("/auth/avatar"),
   changePassword: (payload) => api.put("/auth/password", payload),
 };
-
-
 
 export const documentsApi = {
   list: () => api.get("/documents/"),
@@ -50,16 +53,18 @@ export const chatApi = {
   getMessages: (conversationId) =>
     api.get(`/chat/conversations/${conversationId}/messages`),
   createConversation: (payload) => api.post("/chat/conversations", payload),
+  renameConversation: (conversationId, title) =>
+    api.put(`/chat/conversations/${conversationId}`, { title }),
   deleteConversation: (conversationId) => api.delete(`/chat/conversations/${conversationId}`),
 };
 
 export const adminApi = {
   getStats: () => api.get("/admin/stats"),
-  getUsers: () => api.get("/admin/users"),
+  getUsers: (params) => api.get("/admin/users", { params }),
   createUser: (payload) => api.post("/admin/users", payload),
   updateUser: (userId, payload) => api.put(`/admin/users/${userId}`, payload),
   deleteUser: (userId) => api.delete(`/admin/users/${userId}`),
-  getAllDocuments: () => api.get("/admin/documents"),
+  getAllDocuments: (params) => api.get("/admin/documents", { params }),
   deleteDocument: (docId) => api.delete(`/admin/documents/${docId}`),
   getRecentQueries: () => api.get("/admin/recent-queries"),
   getAIStats: () => api.get("/admin/ai-stats"),

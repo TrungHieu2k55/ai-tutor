@@ -15,21 +15,33 @@ const STATUS_MAP = {
 
 export default function AdminDocuments() {
   const [documents, setDocuments] = useState([]);
+  const [totalDocs, setTotalDocs] = useState(0);
   const [queries, setQueries] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const toast = useToast();
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const [docsRes, queriesRes, aiRes] = await Promise.all([
-        adminApi.getAllDocuments(),
+        adminApi.getAllDocuments({ page, page_size: pageSize, search: search.trim() || undefined }),
         adminApi.getRecentQueries(),
         adminApi.getAIStats(),
       ]);
-      setDocuments(docsRes.data || []);
+
+      const docsData = docsRes.data;
+      if (Array.isArray(docsData)) {
+        setDocuments(docsData);
+        setTotalDocs(docsData.length);
+      } else {
+        setDocuments(docsData.items || []);
+        setTotalDocs(docsData.total || 0);
+      }
+
       setQueries(queriesRes.data || []);
       setStats(aiRes.data || null);
     } catch {
@@ -37,7 +49,7 @@ export default function AdminDocuments() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, pageSize, search]);
 
   useEffect(() => {
     loadData();
@@ -173,18 +185,31 @@ export default function AdminDocuments() {
           extra={
             <Input
               prefix={<SearchOutlined />}
-              placeholder="Tìm kiếm..."
+              placeholder="Tìm kiếm tài liệu..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
               allowClear
               style={{ width: 240 }}
             />
           }
         >
           <Table
-            dataSource={filtered.map((d) => ({ ...d, key: d.id }))}
+            dataSource={(Array.isArray(documents) ? documents : []).map((d) => ({ ...d, key: d.id }))}
             columns={columns}
-            pagination={{ pageSize: 10 }}
+            pagination={{
+
+              current: page,
+              pageSize: pageSize,
+              total: totalDocs,
+              onChange: (p, ps) => {
+                setPage(p);
+                setPageSize(ps);
+              },
+              showSizeChanger: true,
+            }}
             size="middle"
             loading={loading}
           />

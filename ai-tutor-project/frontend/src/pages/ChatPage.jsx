@@ -133,6 +133,19 @@ export default function ChatPage() {
     });
   }
 
+  async function handleRenameConversation(conv, newTitle) {
+    try {
+      await chatApi.renameConversation(conv.id, newTitle);
+      toast?.success("Đã cập nhật tên cuộc trò chuyện");
+      if (activeDoc) {
+        const { data } = await chatApi.getConversations(activeDoc.id);
+        setConversations(data || []);
+      }
+    } catch {
+      toast?.error("Đổi tên thất bại. Vui lòng thử lại.");
+    }
+  }
+
   async function handleAsk(text) {
     const q = text || question;
     if (!q.trim() || !activeDoc) return;
@@ -184,6 +197,7 @@ export default function ChatPage() {
         chatHistory={chatHistoryItems}
         onSelectConversation={handleSelectConversation}
         onDeleteConversation={handleDeleteConversation}
+        onRenameConversation={handleRenameConversation}
         onNewConversation={handleNewConversation}
       />
 

@@ -18,5 +18,5 @@ export const STRONG_PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]{
 // Regex kiểm tra đường dẫn URL
 export const URL_REGEX = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/;
 
-// Regex kiểm tra đuôi file tài liệu (.pdf, .docx, .txt)
-export const DOCUMENT_EXT_REGEX = /\.(pdf|docx|txt)$/i;
+// Regex kiểm tra đuôi file tài liệu (.pdf, .docx, .xlsx, .txt)
+export const DOCUMENT_EXT_REGEX = /\.(pdf|docx|xlsx|txt)$/i;

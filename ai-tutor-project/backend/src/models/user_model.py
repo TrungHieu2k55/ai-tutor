@@ -12,6 +12,10 @@ class User(BeanieDocument):
     role: str = "student"  # student | admin
     avatar_url: str | None = None
     is_active: bool = True
+    is_verified: bool = True
+    otp_code: str | None = None
+    reset_token: str | None = None
+    reset_token_expires_at: datetime | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     class Settings:

@@ -7,6 +7,7 @@ from src.validations.document_validation import (
     CreateConversation,
     DocumentOut,
     MessageOut,
+    RenameConversation,
     SourceChunk,
 )
 
@@ -16,6 +17,7 @@ __all__ = [
     "SourceChunk",
     "AskResponse",
     "CreateConversation",
+    "RenameConversation",
     "ConversationOut",
     "MessageOut",
     "AdminDocumentOut",

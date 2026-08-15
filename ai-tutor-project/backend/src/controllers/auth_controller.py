@@ -5,11 +5,15 @@ from src.models.user_model import User
 from src.services.auth_service import AuthService
 from src.validations.user_validation import (
     ChangePassword,
+    ForgotPasswordRequest,
+    ResendOtpRequest,
+    ResetPasswordRequest,
     TokenOut,
     UpdateProfile,
     UserCreate,
     UserLogin,
     UserOut,
+    VerifyOtpRequest,
 )
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -20,9 +24,29 @@ async def register(payload: UserCreate):
     return await AuthService.register(payload)
 
 
+@router.post("/verify-otp", response_model=TokenOut)
+async def verify_otp(payload: VerifyOtpRequest):
+    return await AuthService.verify_otp(payload.email, payload.otp_code)
+
+
+@router.post("/resend-otp")
+async def resend_otp(payload: ResendOtpRequest):
+    return await AuthService.resend_otp(payload.email)
+
+
 @router.post("/login", response_model=TokenOut)
 async def login(payload: UserLogin):
     return await AuthService.login(payload)
+
+
+@router.post("/forgot-password")
+async def forgot_password(payload: ForgotPasswordRequest):
+    return await AuthService.forgot_password(payload.email)
+
+
+@router.post("/reset-password")
+async def reset_password(payload: ResetPasswordRequest):
+    return await AuthService.reset_password(payload.email, payload.reset_token, payload.new_password)
 
 
 @router.get("/me", response_model=UserOut)

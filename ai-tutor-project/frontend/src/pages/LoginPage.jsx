@@ -4,6 +4,9 @@ import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import aiTutorLogo from "~/assets/ai_tutor.svg";
 import tutorBanner from "~/assets/tutor_banner.jpg";
+import ForgotPasswordModal from "~/components/ForgotPasswordModal";
+import VerifyOtpModal from "~/components/VerifyOtpModal";
+import { authApi } from "~/api/client";
 import { useAuth } from "~/lib/AuthContext";
 import { EMAIL_REGEX, PASSWORD_REGEX } from "~/utils/validators";
 
@@ -13,13 +16,15 @@ export default function LoginPage() {
   const [mode, setMode] = useState("login");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { user, isAuthenticated, loading: authLoading, login, register } = useAuth();
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [otpOpen, setOtpOpen] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState("");
+  const { user, isAuthenticated, loading: authLoading, login } = useAuth();
   const navigate = useNavigate();
 
   if (!authLoading && isAuthenticated) {
     return <Navigate to={user?.role === "admin" ? "/admin" : "/library"} replace />;
   }
-
 
   async function handleSubmit(values) {
     setError("");
@@ -27,12 +32,20 @@ export default function LoginPage() {
     try {
       if (mode === "login") {
         await login(values.email, values.password);
+        navigate("/library");
       } else {
-        await register(values.fullName, values.email, values.password);
+        await authApi.register({ full_name: values.fullName, email: values.email, password: values.password });
+        setPendingEmail(values.email);
+        setOtpOpen(true);
       }
-      navigate("/library");
     } catch (err) {
-      setError(err.response?.data?.detail || "Đã có lỗi xảy ra, vui lòng thử lại.");
+      const detail = err.response?.data?.detail || "Đã có lỗi xảy ra, vui lòng thử lại.";
+      if (detail.includes("chưa được xác thực email")) {
+        setPendingEmail(values.email);
+        setOtpOpen(true);
+      } else {
+        setError(detail);
+      }
     } finally {
       setLoading(false);
     }
@@ -143,7 +156,6 @@ export default function LoginPage() {
           </Flex>
         </div>
 
-
       </div>
 
       {/* Form đăng nhập / đăng ký (Nằm bên PHẢI, tự động toàn màn hình khi trên Mobile) */}
@@ -195,12 +207,23 @@ export default function LoginPage() {
               <Input.Password prefix={<LockOutlined />} placeholder="••••••••" size="large" />
             </Form.Item>
 
-            <Form.Item>
+            {mode === "login" && (
+              <Flex justify="flex-end" style={{ marginBottom: 16 }}>
+                <Button
+                  type="link"
+                  onClick={() => setForgotOpen(true)}
+                  style={{ padding: 0, fontSize: 12.5 }}
+                >
+                  Quên mật khẩu?
+                </Button>
+              </Flex>
+            )}
+
+            <Form.Item style={{ marginBottom: 12 }}>
               <Button type="primary" htmlType="submit" loading={loading} block size="large">
                 {mode === "login" ? "Đăng nhập" : "Đăng ký"}
               </Button>
             </Form.Item>
-
           </Form>
 
           <Button
@@ -212,6 +235,20 @@ export default function LoginPage() {
           </Button>
         </div>
       </div>
+
+      <ForgotPasswordModal
+        open={forgotOpen}
+        onClose={() => setForgotOpen(false)}
+      />
+
+      <VerifyOtpModal
+        open={otpOpen}
+        email={pendingEmail}
+        onSuccess={() => {
+          window.location.href = "/library";
+        }}
+        onClose={() => setOtpOpen(false)}
+      />
     </div>
   );
 }

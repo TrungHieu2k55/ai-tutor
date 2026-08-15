@@ -1,5 +1,5 @@
-import { DeleteOutlined, InboxOutlined } from "@ant-design/icons";
-import { Badge, Button, Card, Col, Empty, Flex, Modal, Row, Tag, Typography, Upload } from "antd";
+import { DeleteOutlined, InboxOutlined, SearchOutlined } from "@ant-design/icons";
+import { Badge, Button, Card, Col, Empty, Flex, Input, Modal, Row, Select, Tag, Typography, Upload } from "antd";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { documentsApi } from "~/api/client";
@@ -11,7 +11,7 @@ import { DOCUMENT_EXT_REGEX } from "~/utils/validators";
 const { Title, Text } = Typography;
 const { Dragger } = Upload;
 
-const TYPE_COLORS = { pdf: "red", docx: "blue", xlsx: "green" };
+const TYPE_COLORS = { pdf: "red", docx: "blue", xlsx: "green", txt: "orange" };
 
 const STATUS_MAP = {
   processing: { text: "Đang xử lý", color: "processing" },
@@ -22,6 +22,9 @@ const STATUS_MAP = {
 export default function LibraryPage() {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const navigate = useNavigate();
   const toast = useToast();
 
@@ -65,14 +68,20 @@ export default function LibraryPage() {
   const uploadProps = {
     name: "file",
     multiple: true,
-    accept: ".pdf,.docx,.txt,.xlsx",
+    accept: ".pdf,.docx,.xlsx,.txt",
     showUploadList: false,
     beforeUpload: (file) => {
-      const isValid = DOCUMENT_EXT_REGEX.test(file.name);
-      if (!isValid) {
-        toast?.error(`File "${file.name}" không hợp lệ. Chỉ chấp nhận .pdf, .docx, .txt`);
+      const isValidExt = DOCUMENT_EXT_REGEX.test(file.name);
+      if (!isValidExt) {
+        toast?.error(`File "${file.name}" không hợp lệ. Chỉ chấp nhận .pdf, .docx, .xlsx, .txt`);
+        return Upload.LIST_IGNORE;
       }
-      return isValid || Upload.LIST_IGNORE;
+      const isUnder50MB = file.size <= 50 * 1024 * 1024;
+      if (!isUnder50MB) {
+        toast?.error(`File "${file.name}" vượt quá dung lượng tối đa 50MB.`);
+        return Upload.LIST_IGNORE;
+      }
+      return true;
     },
     customRequest: async ({ file, onSuccess, onError }) => {
       try {
@@ -88,6 +97,13 @@ export default function LibraryPage() {
     },
   };
 
+  const filteredDocuments = documents.filter((doc) => {
+    const matchesSearch = doc.file_name.toLowerCase().includes(searchQuery.trim().toLowerCase());
+    const matchesType = typeFilter === "all" || doc.file_type.toLowerCase() === typeFilter.toLowerCase();
+    const matchesStatus = statusFilter === "all" || doc.status === statusFilter;
+    return matchesSearch && matchesType && matchesStatus;
+  });
+
   return (
     <Flex style={{ minHeight: "100vh" }}>
       <Sidebar documents={documents} onSelectDocument={(doc) => navigate(`/chat/${doc.id}`)} />
@@ -95,7 +111,7 @@ export default function LibraryPage() {
       <Flex vertical flex={1} gap={24} style={{ padding: 40 }}>
         <div>
           <Title level={4} style={{ marginBottom: 4 }}>Thư viện tài liệu</Title>
-          <Text type="secondary" style={{ fontSize: 13 }}>Quản lý tài liệu học tập của bạn</Text>
+          <Text type="secondary" style={{ fontSize: 13 }}>Quản lý và tra cứu tài liệu học tập của bạn</Text>
         </div>
 
         <Dragger {...uploadProps} style={{ borderRadius: 12, padding: "16px 0" }}>
@@ -103,16 +119,51 @@ export default function LibraryPage() {
             <InboxOutlined style={{ color: "#2F6FED", fontSize: 40 }} />
           </p>
           <p style={{ fontSize: 13.5, color: "#1A2233" }}>Kéo thả tài liệu vào đây hoặc bấm để chọn file</p>
-          <p style={{ fontSize: 12, color: "#6B7A90" }}>Hỗ trợ PDF, DOCX, XLSX — tối đa 50MB</p>
+          <p style={{ fontSize: 12, color: "#6B7A90" }}>Hỗ trợ PDF, DOCX, XLSX, TXT — tối đa 50MB</p>
         </Dragger>
+
+        {/* Thanh Tìm kiếm và Bộ lọc */}
+        <Flex gap={12} wrap="wrap" align="center">
+          <Input
+            placeholder="Tìm kiếm tài liệu..."
+            prefix={<SearchOutlined style={{ color: "#BFBFBF" }} />}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ width: 280, borderRadius: 8 }}
+            allowClear
+          />
+          <Select
+            value={typeFilter}
+            onChange={setTypeFilter}
+            style={{ width: 140 }}
+            options={[
+              { value: "all", label: "Tất cả loại file" },
+              { value: "pdf", label: "PDF" },
+              { value: "docx", label: "DOCX" },
+              { value: "xlsx", label: "XLSX" },
+              { value: "txt", label: "TXT" },
+            ]}
+          />
+          <Select
+            value={statusFilter}
+            onChange={setStatusFilter}
+            style={{ width: 160 }}
+            options={[
+              { value: "all", label: "Tất cả trạng thái" },
+              { value: "indexed", label: "Đã lập chỉ mục" },
+              { value: "processing", label: "Đang xử lý" },
+              { value: "failed", label: "Lỗi xử lý" },
+            ]}
+          />
+        </Flex>
 
         {loading ? (
           <LoadingSkeleton variant="card" count={6} />
-        ) : documents.length === 0 ? (
-          <Empty description="Chưa có tài liệu nào. Tải lên tài liệu đầu tiên để bắt đầu." />
+        ) : filteredDocuments.length === 0 ? (
+          <Empty description="Không tìm thấy tài liệu phù hợp." />
         ) : (
           <Row gutter={[16, 16]}>
-            {documents.map((doc) => {
+            {filteredDocuments.map((doc) => {
               const status = STATUS_MAP[doc.status] || STATUS_MAP.processing;
               return (
                 <Col xs={24} sm={12} lg={8} key={doc.id}>

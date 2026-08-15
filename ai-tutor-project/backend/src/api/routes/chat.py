@@ -10,6 +10,7 @@ from src.schemas.document import (
     ConversationOut,
     CreateConversation,
     MessageOut,
+    RenameConversation,
 )
 from src.services.rag_pipeline import answer_question
 
@@ -59,6 +60,27 @@ async def get_messages(
     return await Message.find(
         Message.conversation_id == conversation_id
     ).sort("+created_at").to_list()
+
+
+@router.put("/conversations/{conversation_id}", response_model=ConversationOut)
+async def rename_conversation(
+    conversation_id: str,
+    payload: RenameConversation,
+    user: User = Depends(get_current_user),
+):
+    from beanie import PydanticObjectId
+
+    try:
+        conv = await Conversation.get(PydanticObjectId(conversation_id))
+    except Exception:
+        conv = None
+
+    if not conv or conv.user_id != str(user.id):
+        raise HTTPException(status_code=404, detail="Không tìm thấy cuộc trò chuyện")
+
+    conv.title = payload.title.strip()
+    await conv.save()
+    return conv
 
 
 @router.delete("/conversations/{conversation_id}")

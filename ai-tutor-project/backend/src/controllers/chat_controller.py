@@ -9,6 +9,7 @@ from src.validations.document_validation import (
     ConversationOut,
     CreateConversation,
     MessageOut,
+    RenameConversation,
 )
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
@@ -36,6 +37,15 @@ async def get_messages(
     user: User = Depends(get_current_user),
 ):
     return await ChatService.get_messages(conversation_id, user)
+
+
+@router.put("/conversations/{conversation_id}", response_model=ConversationOut)
+async def rename_conversation(
+    conversation_id: str,
+    payload: RenameConversation,
+    user: User = Depends(get_current_user),
+):
+    return await ChatService.rename_conversation(conversation_id, payload.title, user)
 
 
 @router.delete("/conversations/{conversation_id}")

@@ -42,6 +42,25 @@ class ChangePassword(BaseModel):
     new_password: str
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    reset_token: str
+    new_password: str
+
+
+class VerifyOtpRequest(BaseModel):
+    email: EmailStr
+    otp_code: str
+
+
+class ResendOtpRequest(BaseModel):
+    email: EmailStr
+
+
 # ---------- Admin ----------
 
 class AdminUserOut(BaseModel):
