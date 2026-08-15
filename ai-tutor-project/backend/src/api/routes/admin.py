@@ -60,10 +60,33 @@ async def get_stats():
 # ---------- User Management ----------
 
 
-@router.get("/users", response_model=list[AdminUserOut])
-async def list_users():
-    """Danh sách tất cả users."""
-    return await User.find_all().sort("-created_at").to_list()
+@router.get("/users")
+async def list_users(
+    page: int = 1,
+    page_size: int = 10,
+    search: str | None = None,
+):
+    """Danh sách tất cả users hỗ trợ tìm kiếm và phân trang."""
+    query = {}
+    if search and search.strip():
+        s = search.strip()
+        query = {
+            "$or": [
+                {"email": {"$regex": s, "$options": "i"}},
+                {"full_name": {"$regex": s, "$options": "i"}},
+            ]
+        }
+
+    total = await User.find(query).count()
+    skip = (max(1, page) - 1) * page_size
+    users = await User.find(query).sort("-created_at").skip(skip).limit(page_size).to_list()
+
+    return {
+        "items": [AdminUserOut.model_validate(u) for u in users],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }
 
 
 @router.post("/users", response_model=AdminUserOut, status_code=201)
@@ -122,12 +145,23 @@ async def delete_user(user_id: str):
 # ---------- Document Management ----------
 
 
-@router.get("/documents", response_model=list[AdminDocumentOut])
-async def list_all_documents():
-    """Danh sách tất cả documents (toàn hệ thống) kèm tên chủ sở hữu."""
-    docs = await Document.find_all().sort("-created_at").to_list()
+@router.get("/documents")
+async def list_all_documents(
+    page: int = 1,
+    page_size: int = 10,
+    search: str | None = None,
+):
+    """Danh sách tất cả documents kèm phân trang và tìm kiếm."""
+    query = {}
+    if search and search.strip():
+        s = search.strip()
+        query = {"file_name": {"$regex": s, "$options": "i"}}
 
-    owner_ids = list({d.owner_id for d in docs})
+    total = await Document.find(query).count()
+    skip = (max(1, page) - 1) * page_size
+    docs = await Document.find(query).sort("-created_at").skip(skip).limit(page_size).to_list()
+
+    owner_ids = list({d.owner_id for d in docs if d.owner_id})
     users = {}
     for oid in owner_ids:
         try:
@@ -137,12 +171,18 @@ async def list_all_documents():
         except Exception:
             pass
 
-    result = []
+    items = []
     for doc in docs:
         doc_dict = doc.model_dump()
         doc_dict["owner_name"] = users.get(doc.owner_id, "Không rõ")
-        result.append(AdminDocumentOut(**doc_dict))
-    return result
+        items.append(AdminDocumentOut(**doc_dict))
+
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }
 
 
 @router.delete("/documents/{doc_id}")

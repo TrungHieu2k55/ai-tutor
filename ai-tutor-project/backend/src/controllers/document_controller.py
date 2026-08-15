@@ -5,10 +5,12 @@ from src.models.user_model import User
 from src.services.document_service import DocumentService
 from src.validations.document_validation import DocumentOut
 
+from src.middlewares.rate_limiter import check_rate_limit
+
 router = APIRouter(prefix="/documents", tags=["Documents"])
 
 
-@router.post("/upload", response_model=DocumentOut)
+@router.post("/upload", response_model=DocumentOut, dependencies=[Depends(check_rate_limit)])
 async def upload_document(
     background_tasks: BackgroundTasks,
     file: UploadFile,

@@ -13,7 +13,7 @@ from src.providers.vector_store_provider import delete_document_index, index_chu
 from src.services.document_processor import process_document
 
 logger = logging.getLogger(__name__)
-ALLOWED_TYPES = {"pdf", "docx", "xlsx"}
+ALLOWED_TYPES = {"pdf", "docx", "xlsx", "txt"}
 
 
 async def _process_and_index(document_id: str, file_path: str, file_type: str):
@@ -38,21 +38,28 @@ class DocumentService:
         file: UploadFile,
         user: User,
     ) -> Document:
-        file_ext = file.filename.split(".")[-1].lower()
+        file_ext = file.filename.split(".")[-1].lower() if file.filename else ""
         if file_ext not in ALLOWED_TYPES:
-            raise HTTPException(status_code=400, detail="Chỉ hỗ trợ PDF, DOCX, XLSX")
+            raise HTTPException(status_code=400, detail="Chỉ hỗ trợ PDF, DOCX, XLSX, TXT")
+
+        content = await file.read()
+        max_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
+        if len(content) > max_bytes:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Dung lượng file vượt quá giới hạn cho phép ({settings.MAX_UPLOAD_SIZE_MB}MB)",
+            )
 
         os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
         file_uid = str(uuid.uuid4())
         file_path = os.path.join(settings.UPLOAD_DIR, f"{file_uid}.{file_ext}")
 
-        content = await file.read()
         with open(file_path, "wb") as f:
             f.write(content)
 
         document = Document(
             owner_id=str(user.id),
-            file_name=file.filename,
+            file_name=file.filename or "unnamed",
             file_path=file_path,
             file_type=file_ext,
             size_bytes=len(content),

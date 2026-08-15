@@ -18,15 +18,17 @@ export default function AdminDashboard() {
           adminApi.getUsers(),
         ]);
         setStats(statsRes.data);
-        setUsers(usersRes.data || []);
+        const uData = usersRes.data;
+        setUsers(Array.isArray(uData) ? uData : (uData?.items || []));
       } catch {
-        // fallback
+        setUsers([]);
       } finally {
         setLoading(false);
       }
     }
     load();
   }, []);
+
 
   const columns = [
     {
@@ -124,13 +126,14 @@ export default function AdminDashboard() {
           styles={{ body: { padding: 0 } }}
         >
           <Table
-            dataSource={users.slice(0, 10).map((u) => ({ ...u, key: u.id }))}
+            dataSource={(Array.isArray(users) ? users : []).slice(0, 10).map((u) => ({ ...u, key: u.id }))}
             columns={columns}
             pagination={false}
             size="middle"
             loading={loading}
             style={{ fontSize: 13 }}
           />
+
         </Card>
       </Flex>
     </Flex>

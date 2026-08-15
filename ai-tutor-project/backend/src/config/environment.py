@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     CLOUDINARY_API_SECRET: str = ""
     CLOUDINARY_UPLOAD_PRESET: str = ""
 
+    # MailerSend
+    MAILERSEND_API_KEY: str = ""
+    MAIL_FROM_EMAIL: str = "MS_CSAWGD@test-y7zpl98zo7345vx6.mlsender.net"
+    MAIL_FROM_NAME: str = "AI Tutor System"
+
     class Config:
         env_file = ".env"
         case_sensitive = True

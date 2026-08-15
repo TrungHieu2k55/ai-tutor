@@ -1,12 +1,15 @@
 """
 Pipeline xử lý tài liệu: trích xuất nội dung -> tiền xử lý -> chia nhỏ văn bản (chunking).
-Hỗ trợ PDF, DOCX, XLSX. Mỗi chunk giữ lại số trang/vị trí gốc để phục vụ trích dẫn nguồn.
+Hỗ trợ PDF, DOCX, XLSX, TXT. Mỗi chunk giữ lại số trang/vị trí gốc để phục vụ trích dẫn nguồn.
 """
 
+import logging
 from dataclasses import dataclass
 
 import pdfplumber
 from docx import Document as DocxDocument
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -30,7 +33,43 @@ def extract_text_from_pdf(file_path: str) -> list[tuple[str, int]]:
 def extract_text_from_docx(file_path: str) -> list[tuple[str, int]]:
     doc = DocxDocument(file_path)
     full_text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
-    return [(full_text, 1)]
+    return [(full_text, 1)] if full_text.strip() else []
+
+
+def extract_text_from_xlsx(file_path: str) -> list[tuple[str, int]]:
+    """Trích xuất text từ tất cả các sheet trong file Excel."""
+    try:
+        import openpyxl
+        wb = openpyxl.load_workbook(file_path, data_only=True)
+        sheets_data = []
+        for idx, sheet_name in enumerate(wb.sheetnames, start=1):
+            sheet = wb[sheet_name]
+            lines = []
+            for row in sheet.iter_rows(values_only=True):
+                row_vals = [str(val).strip() for val in row if val is not None and str(val).strip()]
+                if row_vals:
+                    lines.append(" | ".join(row_vals))
+            if lines:
+                sheet_text = f"--- Sheet: {sheet_name} ---\n" + "\n".join(lines)
+                sheets_data.append((sheet_text, idx))
+        return sheets_data
+    except Exception as e:
+        logger.error("Lỗi trích xuất file XLSX (%s): %s", file_path, str(e))
+        return []
+
+
+def extract_text_from_txt(file_path: str) -> list[tuple[str, int]]:
+    """Trích xuất nội dung từ file văn bản thuần (.txt)."""
+    encodings = ["utf-8", "utf-8-sig", "latin-1", "cp1252"]
+    text = ""
+    for enc in encodings:
+        try:
+            with open(file_path, "r", encoding=enc) as f:
+                text = f.read()
+            break
+        except UnicodeDecodeError:
+            continue
+    return [(text, 1)] if text.strip() else []
 
 
 def chunk_text(text: str, page: int | None, chunk_size: int = 800, overlap: int = 120) -> list[TextChunk]:
@@ -50,10 +89,15 @@ def chunk_text(text: str, page: int | None, chunk_size: int = 800, overlap: int 
 
 def process_document(file_path: str, file_type: str) -> list[TextChunk]:
     """Điểm vào chính của pipeline: đọc file -> trích xuất -> chunk toàn bộ tài liệu."""
-    if file_type == "pdf":
+    ft = file_type.lower()
+    if ft == "pdf":
         pages = extract_text_from_pdf(file_path)
-    elif file_type == "docx":
+    elif ft == "docx":
         pages = extract_text_from_docx(file_path)
+    elif ft == "xlsx":
+        pages = extract_text_from_xlsx(file_path)
+    elif ft == "txt":
+        pages = extract_text_from_txt(file_path)
     else:
         raise ValueError(f"Định dạng chưa được hỗ trợ: {file_type}")
 
@@ -66,3 +110,4 @@ def process_document(file_path: str, file_type: str) -> list[TextChunk]:
             global_idx += 1
         all_chunks.extend(page_chunks)
     return all_chunks
+

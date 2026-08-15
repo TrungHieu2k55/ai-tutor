@@ -11,8 +11,11 @@ const { Title, Text } = Typography;
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -22,24 +25,24 @@ export default function AdminUsers() {
   const loadUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await adminApi.getUsers();
-      setUsers(data || []);
+      const { data } = await adminApi.getUsers({ page, page_size: pageSize, search: search.trim() || undefined });
+      if (Array.isArray(data)) {
+        setUsers(data);
+        setTotalCount(data.length);
+      } else {
+        setUsers(data.items || []);
+        setTotalCount(data.total || 0);
+      }
     } catch {
       toast?.error("Không thể tải danh sách người dùng");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, pageSize, search]);
 
   useEffect(() => {
     loadUsers();
   }, [loadUsers]);
-
-  const filtered = users.filter(
-    (u) =>
-      u.full_name.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase())
-  );
 
   async function handleDelete(id) {
     Modal.confirm({
@@ -182,7 +185,7 @@ export default function AdminUsers() {
         <Flex justify="space-between" align="center">
           <div>
             <Title level={4} style={{ marginBottom: 4 }}>Quản lý người dùng</Title>
-            <Text type="secondary" style={{ fontSize: 13 }}>Tổng cộng {users.length} người dùng</Text>
+            <Text type="secondary" style={{ fontSize: 13 }}>Tổng cộng {totalCount} người dùng</Text>
           </div>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
             Thêm người dùng
@@ -194,14 +197,27 @@ export default function AdminUsers() {
             prefix={<SearchOutlined />}
             placeholder="Tìm theo tên hoặc email..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
             style={{ marginBottom: 16, maxWidth: 360 }}
             allowClear
           />
           <Table
-            dataSource={filtered.map((u) => ({ ...u, key: u.id }))}
+            dataSource={(Array.isArray(users) ? users : []).map((u) => ({ ...u, key: u.id }))}
             columns={columns}
-            pagination={{ pageSize: 10 }}
+            pagination={{
+
+              current: page,
+              pageSize: pageSize,
+              total: totalCount,
+              onChange: (p, ps) => {
+                setPage(p);
+                setPageSize(ps);
+              },
+              showSizeChanger: true,
+            }}
             loading={loading}
           />
         </Card>

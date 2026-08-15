@@ -13,9 +13,13 @@ async def get_stats():
     return await AdminService.get_stats()
 
 
-@router.get("/users", response_model=list[AdminUserOut])
-async def list_users():
-    return await AdminService.list_users()
+@router.get("/users")
+async def list_users(
+    page: int = 1,
+    page_size: int = 10,
+    search: str | None = None,
+):
+    return await AdminService.list_users(page, page_size, search)
 
 
 @router.post("/users", response_model=AdminUserOut, status_code=201)
@@ -33,9 +37,13 @@ async def delete_user(user_id: str):
     return await AdminService.delete_user(user_id)
 
 
-@router.get("/documents", response_model=list[AdminDocumentOut])
-async def list_all_documents():
-    return await AdminService.list_all_documents()
+@router.get("/documents")
+async def list_all_documents(
+    page: int = 1,
+    page_size: int = 10,
+    search: str | None = None,
+):
+    return await AdminService.list_all_documents(page, page_size, search)
 
 
 @router.delete("/documents/{doc_id}")

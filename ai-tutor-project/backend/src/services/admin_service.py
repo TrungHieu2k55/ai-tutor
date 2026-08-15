@@ -47,8 +47,27 @@ class AdminService:
             raise HTTPException(status_code=500, detail=f"Lỗi khi tính thống kê: {str(e)}")
 
     @staticmethod
-    async def list_users() -> list[User]:
-        return await User.find_all().sort("-created_at").to_list()
+    async def list_users(page: int = 1, page_size: int = 10, search: str | None = None) -> dict:
+        query = {}
+        if search and search.strip():
+            s = search.strip()
+            query = {
+                "$or": [
+                    {"email": {"$regex": s, "$options": "i"}},
+                    {"full_name": {"$regex": s, "$options": "i"}},
+                ]
+            }
+
+        total = await User.find(query).count()
+        skip = (max(1, page) - 1) * page_size
+        users = await User.find(query).sort("-created_at").skip(skip).limit(page_size).to_list()
+
+        return {
+            "items": [AdminUserOut.model_validate(u) for u in users],
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+        }
 
     @staticmethod
     async def create_user(payload: AdminUserCreate) -> User:
@@ -98,9 +117,17 @@ class AdminService:
         return {"detail": "Đã xoá người dùng"}
 
     @staticmethod
-    async def list_all_documents() -> list[AdminDocumentOut]:
-        docs = await Document.find_all().sort("-created_at").to_list()
-        owner_ids = list({d.owner_id for d in docs})
+    async def list_all_documents(page: int = 1, page_size: int = 10, search: str | None = None) -> dict:
+        query = {}
+        if search and search.strip():
+            s = search.strip()
+            query = {"file_name": {"$regex": s, "$options": "i"}}
+
+        total = await Document.find(query).count()
+        skip = (max(1, page) - 1) * page_size
+        docs = await Document.find(query).sort("-created_at").skip(skip).limit(page_size).to_list()
+
+        owner_ids = list({d.owner_id for d in docs if d.owner_id})
         users = {}
         for oid in owner_ids:
             try:
@@ -110,12 +137,18 @@ class AdminService:
             except Exception:
                 pass
 
-        result = []
+        items = []
         for doc in docs:
             doc_dict = doc.model_dump()
             doc_dict["owner_name"] = users.get(doc.owner_id, "Không rõ")
-            result.append(AdminDocumentOut(**doc_dict))
-        return result
+            items.append(AdminDocumentOut(**doc_dict))
+
+        return {
+            "items": items,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+        }
 
     @staticmethod
     async def delete_document(doc_id: str) -> dict:

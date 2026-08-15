@@ -46,6 +46,20 @@ class ChatService:
         ).sort("+created_at").to_list()
 
     @staticmethod
+    async def rename_conversation(conversation_id: str, title: str, user: User) -> Conversation:
+        try:
+            conv = await Conversation.get(PydanticObjectId(conversation_id))
+        except Exception:
+            conv = None
+
+        if not conv or conv.user_id != str(user.id):
+            raise HTTPException(status_code=404, detail="Không tìm thấy cuộc trò chuyện")
+
+        conv.title = title.strip()
+        await conv.save()
+        return conv
+
+    @staticmethod
     async def delete_conversation(conversation_id: str, user: User) -> dict:
         try:
             conv = await Conversation.get(PydanticObjectId(conversation_id))

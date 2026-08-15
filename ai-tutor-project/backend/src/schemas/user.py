@@ -3,11 +3,15 @@ from src.validations.user_validation import (
     AdminUserOut,
     AdminUserUpdate,
     ChangePassword,
+    ForgotPasswordRequest,
+    ResendOtpRequest,
+    ResetPasswordRequest,
     TokenOut,
     UpdateProfile,
     UserCreate,
     UserLogin,
     UserOut,
+    VerifyOtpRequest,
 )
 
 __all__ = [
@@ -17,6 +21,10 @@ __all__ = [
     "TokenOut",
     "UpdateProfile",
     "ChangePassword",
+    "ForgotPasswordRequest",
+    "ResetPasswordRequest",
+    "VerifyOtpRequest",
+    "ResendOtpRequest",
     "AdminUserOut",
     "AdminUserUpdate",
     "AdminUserCreate",

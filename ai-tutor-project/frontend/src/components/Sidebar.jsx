@@ -1,5 +1,5 @@
-import { BookOutlined, CrownOutlined, DeleteOutlined, LineChartOutlined, LogoutOutlined, PlusOutlined, UserOutlined } from "@ant-design/icons";
-import { Avatar, Button, Flex, Menu, Tooltip, Typography } from "antd";
+import { BookOutlined, CrownOutlined, DeleteOutlined, EditOutlined, LineChartOutlined, LogoutOutlined, PlusOutlined, UserOutlined } from "@ant-design/icons";
+import { Avatar, Button, Flex, Input, Menu, Modal, Tooltip, Typography } from "antd";
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import aiTutorLogo from "~/assets/ai_tutor.svg";
@@ -15,12 +15,15 @@ export default function Sidebar({
   chatHistory = [],
   onSelectConversation,
   onDeleteConversation,
+  onRenameConversation,
   onNewConversation,
 }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
   const [profileOpen, setProfileOpen] = useState(false);
+  const [editingConv, setEditingConv] = useState(null);
+  const [newTitle, setNewTitle] = useState("");
 
   const userName = user?.full_name || "Sinh viên";
   const userEmail = user?.email || "";
@@ -47,6 +50,19 @@ export default function Sidebar({
     ]
     : [];
 
+  function handleStartRename(e, h) {
+    e.stopPropagation();
+    setEditingConv(h);
+    setNewTitle(h.title || "");
+  }
+
+  function handleSaveRename() {
+    if (editingConv && newTitle.trim()) {
+      onRenameConversation?.(editingConv, newTitle.trim());
+    }
+    setEditingConv(null);
+  }
+
   const historyMenuItems = chatHistory.length > 0
     ? [
       {
@@ -56,14 +72,20 @@ export default function Sidebar({
           key: `history-${h.id}`,
           label: (
             <Flex align="center" justify="space-between" style={{ width: "100%" }}>
-              <Text ellipsis style={{ color: "inherit", maxWidth: 135, fontSize: 13 }}>{h.title}</Text>
-              <DeleteOutlined
-                style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", padding: 2 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDeleteConversation?.(h);
-                }}
-              />
+              <Text ellipsis style={{ color: "inherit", maxWidth: 110, fontSize: 13 }}>{h.title}</Text>
+              <Flex gap={4}>
+                <EditOutlined
+                  style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", padding: 2 }}
+                  onClick={(e) => handleStartRename(e, h)}
+                />
+                <DeleteOutlined
+                  style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", padding: 2 }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteConversation?.(h);
+                  }}
+                />
+              </Flex>
             </Flex>
           ),
           onClick: () => onSelectConversation?.(h),
@@ -204,6 +226,24 @@ export default function Sidebar({
         onClose={() => setProfileOpen(false)}
         user={user || {}}
       />
+
+      {/* Rename conversation modal */}
+      <Modal
+        title="Đổi tên cuộc trò chuyện"
+        open={!!editingConv}
+        onOk={handleSaveRename}
+        onCancel={() => setEditingConv(null)}
+        okText="Lưu"
+        cancelText="Huỷ"
+      >
+        <Input
+          value={newTitle}
+          onChange={(e) => setNewTitle(e.target.value)}
+          onPressEnter={handleSaveRename}
+          placeholder="Nhập tiêu đề cuộc trò chuyện..."
+          autoFocus
+        />
+      </Modal>
 
     </Flex>
   );
