@@ -6,6 +6,7 @@ from src.config.security import hash_password
 from src.models.conversation_model import Conversation
 from src.models.document_model import Document
 from src.models.message_model import Message
+from src.models.system_setting_model import SystemSetting
 from src.models.user_model import User
 
 # Patch tương thích giữa Beanie và Motor/PyMongo phiên bản mới
@@ -21,7 +22,7 @@ async def init_db():
     _client = AsyncIOMotorClient(settings.MONGODB_URL)
     await init_beanie(
         database=_client[settings.MONGODB_DB_NAME],
-        document_models=[User, Document, Conversation, Message],
+        document_models=[User, Document, Conversation, Message, SystemSetting],
     )
     await _seed_default_admin()
 

@@ -100,7 +100,7 @@ class ChatService:
         )
         await user_msg.insert()
 
-        result = answer_question(str(document.id), payload.question)
+        result = await answer_question(str(document.id), payload.question)
 
         assistant_msg = Message(
             conversation_id=conversation_id,

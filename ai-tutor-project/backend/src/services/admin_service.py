@@ -8,6 +8,7 @@ from src.config.security import hash_password
 from src.models.conversation_model import Conversation
 from src.models.document_model import Document
 from src.models.message_model import Message
+from src.models.system_setting_model import SystemSetting
 from src.models.user_model import User
 from src.providers.vector_store_provider import delete_document_index
 from src.validations.document_validation import AdminDocumentOut
@@ -15,6 +16,28 @@ from src.validations.user_validation import AdminUserCreate, AdminUserOut, Admin
 
 
 class AdminService:
+    @staticmethod
+    async def get_settings() -> SystemSetting:
+        setting = await SystemSetting.find_one()
+        if not setting:
+            setting = SystemSetting()
+            await setting.insert()
+        return setting
+
+    @staticmethod
+    async def update_settings(payload: dict) -> SystemSetting:
+        setting = await SystemSetting.find_one()
+        if not setting:
+            setting = SystemSetting()
+            await setting.insert()
+
+        for key, value in payload.items():
+            if hasattr(setting, key) and value is not None:
+                setattr(setting, key, value)
+
+        await setting.save()
+        return setting
+
     @staticmethod
     async def get_stats() -> dict:
         try:

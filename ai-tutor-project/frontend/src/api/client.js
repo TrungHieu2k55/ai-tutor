@@ -68,6 +68,8 @@ export const adminApi = {
   deleteDocument: (docId) => api.delete(`/admin/documents/${docId}`),
   getRecentQueries: () => api.get("/admin/recent-queries"),
   getAIStats: () => api.get("/admin/ai-stats"),
+  getSettings: () => api.get("/admin/settings"),
+  updateSettings: (payload) => api.put("/admin/settings", payload),
 };
 
 export default api;
