@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     DEEPSEEK_API_KEY: str = ""
     ANTHROPIC_API_KEY: str = ""
     GOOGLE_API_KEY: str = ""
+    OPENROUTER_API_KEY: str = ""
+    OPENROUTER_MODEL: str = "deepseek/deepseek-chat"
     EMBEDDING_MODEL: str = "text-embedding-3-small"
 
     # Vector database

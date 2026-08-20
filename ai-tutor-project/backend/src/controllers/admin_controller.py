@@ -59,3 +59,13 @@ async def get_recent_queries():
 @router.get("/ai-stats")
 async def get_ai_stats():
     return await AdminService.get_ai_stats()
+
+
+@router.get("/settings")
+async def get_settings():
+    return await AdminService.get_settings()
+
+
+@router.put("/settings")
+async def update_settings(payload: dict):
+    return await AdminService.update_settings(payload)
