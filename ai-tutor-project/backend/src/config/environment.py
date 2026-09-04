@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     # Auth (JWT)
     JWT_SECRET_KEY: str = "change-me-in-production"
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30  # 30 phút, refresh_token sẽ tự động gia hạn
 
     # LLM / Embedding provider
     DEEPSEEK_API_KEY: str = ""

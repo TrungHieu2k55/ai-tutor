@@ -42,5 +42,22 @@ def retrieve_relevant_chunks(document_id: str, question: str, top_k: int = 4) ->
     return matches
 
 
+def get_document_chunks(document_id: str, limit: int = 20) -> list[dict]:
+    """Lấy các chunk của tài liệu để phục vụ tổng hợp / sinh đề ôn tập."""
+    try:
+        collection = _get_collection(document_id)
+        results = collection.get(limit=limit)
+        docs = results.get("documents") or []
+        metas = results.get("metadatas") or [{}] * len(docs)
+        matches = []
+        for text, meta in zip(docs, metas):
+            if text and text.strip():
+                matches.append({"text": text, "page": (meta or {}).get("page", 1)})
+        return matches
+    except Exception:
+        return []
+
+
 def delete_document_index(document_id: str) -> None:
     _client.delete_collection(name=f"doc_{document_id}")
+

@@ -91,3 +91,9 @@ class AdminQueryLog(BaseModel):
     document_name: str
     latency: str
     status: str
+
+
+class ExportQuizRequest(BaseModel):
+    questions: list[dict]
+    file_name: str | None = None
+

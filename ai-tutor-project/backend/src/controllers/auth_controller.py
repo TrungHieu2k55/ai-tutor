@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, File, UploadFile, status
 
+from src.config.security import create_access_token, create_refresh_token, decode_refresh_token
 from src.middlewares.deps import get_current_user
 from src.models.user_model import User
 from src.services.auth_service import AuthService
 from src.validations.user_validation import (
     ChangePassword,
     ForgotPasswordRequest,
+    RefreshTokenRequest,
     ResendOtpRequest,
     ResetPasswordRequest,
     TokenOut,
@@ -37,6 +39,29 @@ async def resend_otp(payload: ResendOtpRequest):
 @router.post("/login", response_model=TokenOut)
 async def login(payload: UserLogin):
     return await AuthService.login(payload)
+
+
+@router.post("/refresh", response_model=TokenOut)
+async def refresh_token(payload: RefreshTokenRequest):
+    """Dùng refresh_token để lấy access_token mới mà không cần đăng nhập lại."""
+    from beanie import PydanticObjectId
+    from fastapi import HTTPException
+
+    user_id = decode_refresh_token(payload.refresh_token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Refresh token không hợp lệ hoặc đã hết hạn")
+
+    try:
+        user = await User.get(PydanticObjectId(user_id))
+    except Exception:
+        user = None
+
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="Người dùng không tồn tại hoặc đã bị khoá")
+
+    new_access = create_access_token(subject=str(user.id))
+    new_refresh = create_refresh_token(subject=str(user.id))
+    return TokenOut(access_token=new_access, refresh_token=new_refresh)
 
 
 @router.post("/forgot-password")

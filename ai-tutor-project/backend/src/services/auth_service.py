@@ -1,6 +1,6 @@
 from fastapi import HTTPException, UploadFile, status
 
-from src.config.security import create_access_token, hash_password, verify_password
+from src.config.security import create_access_token, create_refresh_token, hash_password, verify_password
 from src.models.user_model import User
 from src.providers.cloudinary_provider import upload_image_bytes
 from src.validations.user_validation import (
@@ -52,8 +52,9 @@ class AuthService:
             raise HTTPException(status_code=404, detail="Email này chưa được đăng ký")
 
         if user.is_verified:
-            token = create_access_token(subject=str(user.id))
-            return TokenOut(access_token=token)
+            access = create_access_token(subject=str(user.id))
+            refresh = create_refresh_token(subject=str(user.id))
+            return TokenOut(access_token=access, refresh_token=refresh)
 
         if not user.otp_code or user.otp_code != otp_code.strip():
             raise HTTPException(status_code=400, detail="Mã OTP không chính xác")
@@ -62,8 +63,9 @@ class AuthService:
         user.otp_code = None
         await user.save()
 
-        token = create_access_token(subject=str(user.id))
-        return TokenOut(access_token=token)
+        access = create_access_token(subject=str(user.id))
+        refresh = create_refresh_token(subject=str(user.id))
+        return TokenOut(access_token=access, refresh_token=refresh)
 
     @staticmethod
     async def resend_otp(email: str) -> dict:
@@ -92,8 +94,9 @@ class AuthService:
                 detail="Tài khoản chưa được xác thực email. Vui lòng hoàn tất xác thực OTP.",
             )
 
-        token = create_access_token(subject=str(user.id))
-        return TokenOut(access_token=token)
+        access = create_access_token(subject=str(user.id))
+        refresh = create_refresh_token(subject=str(user.id))
+        return TokenOut(access_token=access, refresh_token=refresh)
 
     @staticmethod
     async def forgot_password(email: str) -> dict:

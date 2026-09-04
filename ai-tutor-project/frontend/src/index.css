@@ -1,13 +1,42 @@
+body, button, input, select, textarea, .ant-typography {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
 body {
   margin: 0;
-  font-family: "Inter", system-ui, sans-serif;
-  -webkit-font-smoothing: antialiased;
   background: #F3F6FB;
   color: #1A2233;
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* Reference Sources (Nguồn tham chiếu) styling */
+.source-card {
+  transition: all 0.2s ease-in-out;
+  border: 1px solid #E2E8F0 !important;
+  border-left: 3.5px solid #2F6FED !important;
+  border-radius: 10px !important;
+  background: #FFFFFF !important;
+}
+
+.source-card:hover {
+  border-color: #CBD5E1 !important;
+  border-left-color: #1D4ED8 !important;
+  box-shadow: 0 4px 12px rgba(47, 111, 237, 0.08) !important;
+}
+
+.source-snippet-text {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+  font-size: 12.5px !important;
+  color: #334155 !important;
+  line-height: 1.65 !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
 }
 
 /* Responsive Login Page Layout */
