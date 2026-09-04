@@ -15,6 +15,7 @@ export function AuthProvider({ children }) {
     } catch {
       // Token hết hạn hoặc không hợp lệ
       localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
       setToken(null);
       setUser(null);
     } finally {
@@ -33,6 +34,7 @@ export function AuthProvider({ children }) {
   async function login(email, password) {
     const { data } = await authApi.login({ email, password });
     localStorage.setItem("access_token", data.access_token);
+    localStorage.setItem("refresh_token", data.refresh_token);
     setToken(data.access_token);
   }
 
@@ -43,6 +45,7 @@ export function AuthProvider({ children }) {
 
   function logout() {
     localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
     setToken(null);
     setUser(null);
   }
